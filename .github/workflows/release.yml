@@ -40,13 +40,7 @@ jobs:
             echo "Error: Version format '$VERSION' is not valid. Expected format: x.y.z"
             exit 1
           fi
-          
-          # Check if tag already exists
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "Error: Tag v$VERSION already exists"
-            exit 1
-          fi
-          
+                    
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "Prepared version: $VERSION"
