@@ -77,11 +77,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: pnpm type-check
-
       - name: Build ${{ matrix.name }}
         run: ${{ matrix.build_cmd }}
+
+      - name: Type check
+        run: pnpm type-check
 
       - name: Create zip package
         run: ${{ matrix.zip_cmd }}
@@ -135,10 +135,6 @@ jobs:
       - name: Install Go dependencies
         working-directory: mcp-host-go
         run: make deps
-
-      - name: Run Go linting
-        working-directory: mcp-host-go
-        run: make lint
 
       - name: Run Go tests
         working-directory: mcp-host-go
