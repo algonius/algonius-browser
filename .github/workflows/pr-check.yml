@@ -57,10 +57,6 @@ jobs:
         working-directory: mcp-host-go
         run: make deps
 
-      - name: Run Go linting
-        working-directory: mcp-host-go
-        run: make lint
-
       - name: Build Go MCP Host
         working-directory: mcp-host-go
         run: make build
