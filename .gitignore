@@ -25,3 +25,5 @@ chrome-extension/public/manifest.json
 .nanobrowser
 .vscode
 *.py
+
+mcp-host-go/manifest
