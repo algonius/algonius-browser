@@ -84,7 +84,7 @@ func TestClickElementToolBasicFunctionality(t *testing.T) {
 		// Execute click tool
 		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
 			"element_index": 1,
-			"wait_after":    2.0,
+			"wait_after":    2000.0,
 		})
 		require.NoError(t, err)
 		assert.False(t, result.IsError, "Tool execution should not result in error")
@@ -97,7 +97,7 @@ func TestClickElementToolBasicFunctionality(t *testing.T) {
 
 		capturedParams := capturedClickRequests[0]
 		assert.Equal(t, float64(1), capturedParams["element_index"])
-		assert.Equal(t, 2.0, capturedParams["wait_after"])
+		assert.Equal(t, 2000.0, capturedParams["wait_after"])
 
 		t.Log("Successfully tested basic element click")
 	})
@@ -176,7 +176,7 @@ func TestClickElementToolParameterValidation(t *testing.T) {
 			name: "invalid_wait_after_too_large",
 			args: map[string]interface{}{
 				"element_index": 1,
-				"wait_after":    35,
+				"wait_after":    35000,
 			},
 			expectError: true,
 		},
@@ -199,7 +199,7 @@ func TestClickElementToolParameterValidation(t *testing.T) {
 			name: "valid_parameters",
 			args: map[string]interface{}{
 				"element_index": 5,
-				"wait_after":    1.5,
+				"wait_after":    1500.0,
 			},
 			expectError: false,
 		},
@@ -354,7 +354,7 @@ func TestClickElementToolErrorHandling(t *testing.T) {
 
 		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
 			"element_index": 1,
-			"wait_after":    1.0,
+			"wait_after":    1000.0,
 		})
 
 		require.NoError(t, err)
@@ -363,7 +363,7 @@ func TestClickElementToolErrorHandling(t *testing.T) {
 		// Verify RPC call was made
 		require.Len(t, capturedClickRequests, 1, "Should have captured the click request")
 		assert.Equal(t, float64(1), capturedClickRequests[0]["element_index"])
-		assert.Equal(t, 1.0, capturedClickRequests[0]["wait_after"])
+		assert.Equal(t, 1000.0, capturedClickRequests[0]["wait_after"])
 
 		t.Log("Successfully tested successful click case")
 	})
@@ -505,7 +505,7 @@ func TestClickElementToolCompleteWorkflow(t *testing.T) {
 		// Step 2: Click the submit button (element index 2)
 		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
 			"element_index": 2,
-			"wait_after":    1.5,
+			"wait_after":    1500.0,
 		})
 
 		require.NoError(t, err)
@@ -517,7 +517,7 @@ func TestClickElementToolCompleteWorkflow(t *testing.T) {
 		// Verify click request was made
 		require.Len(t, clickHistory, 1, "Should have captured exactly one click request")
 		assert.Equal(t, float64(2), clickHistory[0]["element_index"])
-		assert.Equal(t, 1.5, clickHistory[0]["wait_after"])
+		assert.Equal(t, 1500.0, clickHistory[0]["wait_after"])
 
 		// Verify DOM state was requested
 		require.Len(t, domStateRequests, 1, "Should have captured DOM state request")
@@ -585,9 +585,9 @@ func TestClickElementToolSchema(t *testing.T) {
 		// Validate wait_after property
 		waitAfterProp := properties["wait_after"].(map[string]interface{})
 		assert.Equal(t, "number", waitAfterProp["type"])
-		assert.Equal(t, float64(1), waitAfterProp["default"])
+		assert.Equal(t, float64(1000), waitAfterProp["default"])
 		assert.Equal(t, float64(0), waitAfterProp["minimum"])
-		assert.Equal(t, float64(30), waitAfterProp["maximum"])
+		assert.Equal(t, float64(30000), waitAfterProp["maximum"])
 
 		// Validate return_dom_state property
 		returnDomStateProp := properties["return_dom_state"].(map[string]interface{})
@@ -689,7 +689,7 @@ func TestClickElementToolReturnDomState(t *testing.T) {
 		// Execute click tool without return_dom_state parameter
 		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
 			"element_index": 1,
-			"wait_after":    1.0,
+			"wait_after":    1000.0,
 		})
 		require.NoError(t, err)
 		assert.False(t, result.IsError, "Tool execution should not result in error")
@@ -721,7 +721,7 @@ func TestClickElementToolReturnDomState(t *testing.T) {
 		// Execute click tool with return_dom_state=false
 		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
 			"element_index":    2,
-			"wait_after":       1.5,
+			"wait_after":       1500.0,
 			"return_dom_state": false,
 		})
 		require.NoError(t, err)
@@ -753,7 +753,7 @@ func TestClickElementToolReturnDomState(t *testing.T) {
 		// Execute click tool with return_dom_state=true
 		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
 			"element_index":    1,
-			"wait_after":       2.0,
+			"wait_after":       2000.0,
 			"return_dom_state": true,
 		})
 		require.NoError(t, err)

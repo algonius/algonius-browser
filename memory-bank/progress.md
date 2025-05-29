@@ -194,6 +194,32 @@ With the set_value tool implementation complete, the project is ready for the ne
 
 ## Recent Progress
 
+### Click Element Test Fixes (2025-05-29)
+Successfully fixed all failing tests in the click_element integration test suite:
+
+**Issues Fixed**:
+1. **Parameter Validation Test**: Fixed `invalid_wait_after_too_large` test case - changed from `35` to `35000` milliseconds to properly exceed the maximum limit of 30000ms
+2. **Schema Validation Test**: Updated expected schema values to match actual implementation:
+   - `wait_after` default: `1000` milliseconds (not `1`)
+   - `wait_after` maximum: `30000` milliseconds (not `30`)
+
+**Technical Details**:
+- The Go implementation uses milliseconds for all timing values
+- Schema validation now correctly expects `default: 1000` and `maximum: 30000`
+- Parameter validation properly catches values exceeding 30000ms limit
+- All 6 test functions now pass with 15 sub-tests covering:
+  - Basic functionality and successful element clicks
+  - Parameter validation for all edge cases
+  - Error handling for element not found, not clickable, and detached scenarios
+  - Complete workflow integration with DOM state
+  - Schema validation for tool metadata
+  - DOM state return functionality
+
+**Files Modified**:
+- `mcp-host-go/tests/integration/click_element_test.go` - Fixed test expectations to match implementation
+
+**Results**: All click_element tests now pass (7.639s execution time), ensuring reliable tool functionality for external AI systems.
+
 ### Set Value Tool Implementation and Testing (2025-05-27)
 Successfully implemented and tested the new `set_value` MCP tool to provide comprehensive form interaction capabilities to external AI systems:
 

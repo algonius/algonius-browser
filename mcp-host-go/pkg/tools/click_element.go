@@ -70,10 +70,10 @@ func (t *ClickElementTool) GetInputSchema() interface{} {
 			},
 			"wait_after": map[string]interface{}{
 				"type":        "number",
-				"description": "Time to wait after clicking (seconds)",
+				"description": "Time to wait after clicking (milliseconds)",
 				"minimum":     0,
-				"maximum":     30,
-				"default":     1,
+				"maximum":     30000,
+				"default":     1000,
 			},
 			"return_dom_state": map[string]interface{}{
 				"type":        "boolean",
@@ -114,11 +114,11 @@ func (t *ClickElementTool) Execute(args map[string]interface{}) (types.ToolResul
 	}
 
 	// Extract and validate wait_after
-	waitAfter := 1.0 // default value
+	waitAfter := 1000.0 // default value
 	if waitAfterArg, exists := args["wait_after"]; exists {
 		if waitVal, ok := waitAfterArg.(float64); ok {
-			if waitVal < 0 || waitVal > 30 {
-				return types.ToolResult{}, fmt.Errorf("wait_after must be between 0 and 30 seconds, got: %v", waitVal)
+			if waitVal < 0 || waitVal > 30000 {
+				return types.ToolResult{}, fmt.Errorf("wait_after must be between 0 and 30000 milliseconds, got: %v", int(waitVal))
 			}
 			waitAfter = waitVal
 		} else {
@@ -144,7 +144,8 @@ func (t *ClickElementTool) Execute(args map[string]interface{}) (types.ToolResul
 
 	t.logger.Debug("Sending click_element RPC request",
 		zap.Int("element_index", elementIndex),
-		zap.Float64("wait_after", waitAfter))
+		zap.Float64("wait_after", waitAfter),
+		zap.String("wait_after_unit", "milliseconds"))
 
 	// Send RPC request to the extension
 	resp, err := t.messaging.RpcRequest(types.RpcRequest{

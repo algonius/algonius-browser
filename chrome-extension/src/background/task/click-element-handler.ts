@@ -58,11 +58,11 @@ export class ClickElementHandler {
 
       // Validate wait_after parameter if provided
       const waitAfter = wait_after || 1;
-      if (typeof waitAfter !== 'number' || waitAfter < 0 || waitAfter > 30) {
+      if (typeof waitAfter !== 'number' || waitAfter < 0 || waitAfter > 30000) {
         return {
           error: {
             code: -32602,
-            message: 'wait_after must be a number between 0 and 30 seconds',
+            message: 'wait_after must be a number between 0 and 30000 milliseconds',
           },
         };
       }
@@ -85,7 +85,7 @@ export class ClickElementHandler {
       const clickResult = await this.clickElement(currentPage, element_index);
 
       // Wait for the specified time after clicking
-      await new Promise(resolve => setTimeout(resolve, waitAfter * 1000));
+      await new Promise(resolve => setTimeout(resolve, waitAfter));
 
       // Check if page changed after click
       const afterUrl = await this.getCurrentUrl(currentPage);
