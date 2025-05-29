@@ -1,290 +1,234 @@
 <h1 align="center">
-    <img src="https://github.com/user-attachments/assets/ec60b0c4-87ba-48f4-981a-c55ed0e8497b" height="100" width="375" alt="banner" /><br>
+    <img src="https://github.com/user-attachments/assets/1b2b1bc0-c7b4-4a45-83f5-4a6161831535" height="100" width="375" alt="Algonius Browser Banner" /><br>
+    MCP Browser Automation
 </h1>
-
 
 <div align="center">
 
 [![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/algonius/algonius-browser)
-[![Twitter](https://img.shields.io/badge/Twitter-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/nanobrowser_ai)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/NN3ABHggMK)
 
 </div>
 
-## 🌐 Algonius Browser
+## 🌐 Overview
 
-Algonius Browser is an open-source AI web automation tool that exposes browser capabilities through the Model Context Protocol (MCP). It enables external AI systems to control and interact with the browser, providing a standardized interface for web automation while leveraging a flexible multi-agent system.
+Algonius Browser is an open-source MCP (Model Context Protocol) server that provides browser automation capabilities to external AI systems. It exposes a comprehensive set of browser control tools through the MCP protocol, enabling AI assistants and other tools to navigate websites, interact with DOM elements, and extract web content programmatically.
 
-⬇️ Get [Algonius Browser from Chrome Web Store](https://chromewebstore.google.com/detail/nanobrowser/imbddededgmcgfhfpcjmijokokekbkal) for free
+## 🎯 Key Features
 
-👏 Join the community in [Discord](https://discord.gg/NN3ABHggMK) | [X](https://x.com/nanobrowser_ai)
+- **MCP Protocol Integration**: Standard interface for AI systems to control browser automation
+- **Chrome Extension**: Background service worker that handles browser interactions
+- **Native Messaging**: Go-based MCP host that bridges Chrome extension with external tools
+- **Comprehensive Tool Set**: 7 essential browser automation tools
+- **Type Safety**: Full TypeScript implementation with structured error handling
+- **Testing Suite**: Comprehensive integration tests for all functionality
 
-❤️ Loving Algonius Browser? Give us a star 🌟 and help spread the word!
+## 🛠️ Available MCP Tools
 
-<div align="center">
-<img src="https://github.com/user-attachments/assets/112c4385-7b03-4b81-a352-4f348093351b" width="600" alt="Algonius Browser Demo GIF" />
-<p><em>Algonius Browser's multi-agent system analyzing HuggingFace in real-time, with the Planner intelligently self-correcting when encountering obstacles and dynamically instructing the Navigator to adjust its approach—all running locally in your browser.</em></p>
-</div>
+### Navigation & State
+- **`navigate_to`**: Navigate to URLs with configurable timeout handling
+- **`get_browser_state`**: Get current browser state including active tabs and page information
+- **`manage_tabs`**: Create, close, and switch between browser tabs
 
-## 🔥Why Algonius Browser?
-
-Looking for a powerful AI web agent without the $200/month price tag of OpenAI Operator? **Algonius Browser**, as a chrome extension, delivers premium web automation capabilities while keeping you in complete control:
-
-- **100% Free** - No subscription fees or hidden costs. Just install and use your own API keys, and you only pay what you use with your own API keys.
-- **Privacy-Focused** - Everything runs in your local browser. Your credentials stay with you, never shared with any cloud service.
-- **Flexible LLM Options** - Connect to your preferred LLM providers with the freedom to choose different models for different agents.
-- **Fully Open Source** - Complete transparency in how your browser is automated. No black boxes or hidden processes.
-
-> **Note:** We currently support OpenAI, Anthropic, Gemini, Ollama and custom OpenAI-Compatible providers, more providers will be supported.
-
-
-## 🎯 Project Goals
-
-Algonius Browser is a fork of Nanobrowser with a focused mission:
-
-- **Enhanced MCP Integration**: Expose browser automation capabilities to external AI systems and tools through the Model Context Protocol (MCP)
-- **Standardized Interface**: Provide a standardized interface allowing external systems to control browser navigation, element interaction, and content extraction
-- **Multi-Agent System Leverage**: Utilize the multi-agent architecture with planning, navigation, and validation agents to execute complex web tasks
-- **Cross-Platform AI Interoperability**: Enable AI assistants and tools to seamlessly utilize browser capabilities regardless of platform or provider
-- **Open Source Extensibility**: Maintain the project as open source, welcome community contributions, and establish a browser automation platform that can be integrated with other systems
-
-
-## 📊 Key Features
-
-- **Multi-agent System**: Specialized AI agents collaborate to accomplish complex web workflows
-- **Interactive Side Panel**: Intuitive chat interface with real-time status updates
-- **Task Automation**: Seamlessly automate repetitive web automation tasks across websites
-- **Follow-up Questions**: Ask contextual follow-up questions about completed tasks
-- **Conversation History**: Easily access and manage your AI agent interaction history
-- **Multiple LLM Support**: Connect your preferred LLM providers and assign different models to different agents
-
+### DOM Interaction  
+- **`get_dom_state`**: Extract DOM structure and elements with pagination support
+- **`click_element`**: Click DOM elements using CSS selectors or text matching
+- **`set_value`**: Set values in input fields, textareas, and form elements
+- **`scroll_page`**: Scroll pages up or down with customizable distances
 
 ## 🚀 Quick Start
 
-1. **Install from Chrome Web Store** (Stable Version):
-   * Visit the [Algonius Browser Chrome Web Store page](https://chromewebstore.google.com/detail/nanobrowser/imbddededgmcgfhfpcjmijokokekbkal)
-   * Click "Add to Chrome" button
-   * Confirm the installation when prompted
+### 1. Install MCP Host
 
-> **Important Note**: For latest features, install from ["Manually Install Latest Version"](#-manually-install-latest-version) below, as Chrome Web Store version may be delayed due to review process.
-
-2. **Configure Agent Models**:
-   * Click the Algonius Browser icon in your toolbar to open the sidebar
-   * Click the `Settings` icon (top right)
-   * Add your LLM API keys
-   * Choose which model to use for different agents (Navigator, Planner, Validator)
-
-## 🔧 Manually Install Latest Version
-
-To get the most recent version with all the latest features:
-
-1. **Download**
-    * Download the latest `algonius-browser.zip` file from the official Github [release page](https://github.com/algonius/algonius-browser/releases).
-
-2. **Install**:
-    * Unzip `algonius-browser.zip`.
-    * Open `chrome://extensions/` in Chrome
-    * Enable `Developer mode` (top right)
-    * Click `Load unpacked` (top left)
-    * Select the unzipped `algonius-browser` folder.
-
-3. **Configure Agent Models**
-    * Click the Algonius Browser icon in your toolbar to open the sidebar
-    * Click the `Settings` icon (top right).
-    * Add your LLM API keys.
-    * Choose which model to use for different agents (Navigator, Planner, Validator)
-
-4. **Upgrading**:
-    * Download the latest `algonius-browser.zip` file from the release page.
-    * Unzip and replace your existing Algonius Browser files with the new ones.
-    * Go to `chrome://extensions/` in Chrome and click the refresh icon on the Algonius Browser card.
-
-## 🔗 MCP Host Installation (For External AI Integration)
-
-If you want to integrate Algonius Browser with external AI systems via the Model Context Protocol (MCP), you'll need to install the MCP Host component.
-
-### One-Click Installation (Recommended)
-
+**One-Click Installation (Recommended)**:
 ```bash
-# Download and install the latest MCP Host automatically
 curl -fsSL https://raw.githubusercontent.com/algonius/algonius-browser/master/install-mcp-host.sh | bash
 ```
 
-Or using wget:
+**Manual Installation**:
 ```bash
-wget -qO- https://raw.githubusercontent.com/algonius/algonius-browser/master/install-mcp-host.sh | bash
+# Download latest release
+wget https://github.com/algonius/algonius-browser/releases/latest/download/mcp-host-linux-x86_64.tar.gz
+
+# Extract and install
+tar -xzf mcp-host-linux-x86_64.tar.gz
+cd mcp-host-linux-x86_64
+./install.sh
 ```
 
-### Manual Installation Options
+### 2. Install Chrome Extension
 
+**From Source**:
 ```bash
-# Install specific version
-./install-mcp-host.sh --version 1.2.3
+# Clone and build
+git clone https://github.com/algonius/algonius-browser.git
+cd algonius-browser
+pnpm install
+pnpm build
 
-# Uninstall
-./install-mcp-host.sh --uninstall
-
-# View help
-./install-mcp-host.sh --help
+# Load in Chrome
+# 1. Open chrome://extensions/
+# 2. Enable "Developer mode"
+# 3. Click "Load unpacked"
+# 4. Select the 'dist' folder
 ```
 
-**What the installer does:**
-- Automatically detects your OS and architecture (Linux, macOS, Windows)
-- Downloads the appropriate pre-compiled binary from GitHub releases
-- Installs Native Messaging manifests for Chrome, Chromium, and Edge
-- Sets up all necessary permissions and configurations
+### 3. Start MCP Host
 
-**Supported platforms:**
+```bash
+# Test the installation
+mcp-host-go --version
+
+# The MCP host will be automatically started when needed by the Chrome extension
+```
+
+## 🔧 Integration Examples
+
+### Using with AI Assistants
+
+Once installed, AI systems can use the browser automation tools through the MCP protocol:
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "navigate_to",
+    "arguments": {
+      "url": "https://example.com",
+      "timeout": 30000
+    }
+  }
+}
+```
+
+### Common Workflows
+
+**Web Scraping**:
+1. `navigate_to` → Navigate to target site
+2. `get_dom_state` → Extract page content
+3. `click_element` → Interact with elements
+4. `get_dom_state` → Extract updated content
+
+**Form Automation**:
+1. `navigate_to` → Go to form page
+2. `set_value` → Fill form fields
+3. `click_element` → Submit form
+4. `get_browser_state` → Verify completion
+
+## 🏗️ Architecture
+
+```
+External AI System
+       ↓ (MCP Protocol)
+   MCP Host (Go)
+       ↓ (Native Messaging)
+Chrome Extension
+       ↓ (Chrome APIs)
+    Browser Tabs
+```
+
+### Components
+
+- **MCP Host**: Go-based native messaging host that implements MCP protocol
+- **Chrome Extension**: Background service worker with tool handlers
+- **Content Scripts**: DOM interaction and data extraction utilities
+- **Integration Tests**: Comprehensive test suite for all tools
+
+## 🧪 Development
+
+### Build from Source
+
+**Prerequisites**:
+- Node.js 22.12.0+
+- pnpm 9.15.1+
+- Go 1.21+ (for MCP host)
+
+**Build Extension**:
+```bash
+pnpm install
+pnpm build
+```
+
+**Build MCP Host**:
+```bash
+cd mcp-host-go
+make build
+```
+
+**Run Tests**:
+```bash
+# Extension tests
+pnpm test
+
+# MCP host tests  
+cd mcp-host-go
+make test
+```
+
+### Development Mode
+
+```bash
+# Extension development
+pnpm dev
+
+# MCP host development
+cd mcp-host-go
+make dev
+```
+
+## 📊 Supported Platforms
+
+**MCP Host**:
 - Linux x86_64
-- macOS Intel (x86_64) and Apple Silicon (arm64)
+- macOS Intel (x86_64) and Apple Silicon (arm64)  
 - Windows x86_64
 
-For detailed installation instructions and troubleshooting, see [INSTALL-MCP-HOST.md](./INSTALL-MCP-HOST.md).
+**Chrome Extension**:
+- Chrome/Chromium 88+
+- Microsoft Edge 88+
 
-## 🛠️ Build from Source
+## 📚 Documentation
 
-If you prefer to build Algonius Browser yourself, follow these steps:
+Detailed documentation available in the `docs/` directory:
 
-1. **Prerequisites**:
-   * [Node.js](https://nodejs.org/) (v22.12.0 or higher)
-   * [pnpm](https://pnpm.io/installation) (v9.15.1 or higher)
-
-2. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/algonius/algonius-browser.git
-   cd algonius-browser
-   ```
-
-3. **Install Dependencies**:
-   ```bash
-   pnpm install
-   ```
-
-4. **Build the Extension**:
-   ```bash
-   pnpm build
-   ```
-
-5. **Load the Extension**:
-   * The built extension will be in the `dist` directory
-   * Follow the installation steps from the Manually Install section to load the extension into your browser
-
-6. **Development Mode** (optional):
-   ```bash
-   pnpm dev
-   ```
-
-## 🤖 Choosing Your Models
-
-Algonius Browser allows you to configure different LLM models for each agent to balance performance and cost. Here are recommended configurations:
-
-### Better Performance
-- **Planner & Validator**: Claude 3.7 Sonnet
-  - Better reasoning and planning capabilities
-  - More reliable task validation
-- **Navigator**: Claude 3.5 Haiku
-  - Efficient for web navigation tasks
-  - Good balance of performance and cost
-
-### Cost-Effective Configuration
-- **Planner & Validator**: Claude Haiku or GPT-4o
-  - Reasonable performance at lower cost
-  - May require more iterations for complex tasks
-- **Navigator**: Gemini 2.0 Flash or GPT-4o-mini
-  - Lightweight and cost-efficient
-  - Suitable for basic navigation tasks
-
-### Local Models
-- **Setup Options**:
-  - Use Ollama or other custom OpenAI-compatible providers to run models locally
-  - Zero API costs and complete privacy with no data leaving your machine
-
-- **Recommended Models**:
-  - **Qwen3 14B**
-  - **Falcon3 10B**
-  - **Qwen 2.5 Coder 14B**
-  - **Mistral Small 24B**
-  - We welcome community experience sharing with other local models in our [Discord](https://discord.gg/NN3ABHggMK)
-
-- **Prompt Engineering**:
-  - Local models require more specific and cleaner prompts
-  - Avoid high-level, ambiguous commands
-  - Break complex tasks into clear, detailed steps
-  - Provide explicit context and constraints
-
-> **Note**: The cost-effective configuration may produce less stable outputs and require more iterations for complex tasks.
-
-> **Tip**: Feel free to experiment with your own model configurations! Found a great combination? Share it with the community in our [Discord](https://discord.gg/NN3ABHggMK) to help others optimize their setup.
-
-## 💡 See It In Action
-
-Here are some powerful tasks you can accomplish with just a sentence:
-
-1. **News Summary**:
-   > "Go to TechCrunch and extract top 10 headlines from the last 24 hours"
-
-2. **GitHub Research**:
-   > "Look for the trending Python repositories on GitHub with most stars"
-
-3. **Shopping Research**:
-   > "Find a portable Bluetooth speaker on Amazon with a water-resistant design, under $50. It should have a minimum battery life of 10 hours"
-
-## 🛠️ Roadmap
-
-We're actively developing Algonius Browser with exciting features on the horizon, welcome to join us! 
-
-Check out our detailed roadmap and upcoming features in our [GitHub Discussions](https://github.com/algonius/algonius-browser/discussions). 
+- [MCP Host Integration](docs/chrome-mcp-host.md)
+- [Click Element Tool](docs/click-element-tool.md)
+- [Set Value Tool](docs/set-value-tool.md)
+- [Navigate To Timeout](docs/navigate-to-timeout.md)
+- [Integration Testing](docs/mcp-host-integration-testing.md)
 
 ## 🤝 Contributing
 
-**We need your help to make Algonius Browser even better!**  Contributions of all kinds are welcome:
+We welcome contributions! Check out our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-*  **Share Prompts & Use Cases** 
-   * Join our [Discord server](https://discord.gg/NN3ABHggMK).
-   * share how you're using Algonius Browser.  Help us build a library of useful prompts and real-world use cases.
-*  **Provide Feedback** 
-   * Try Algonius Browser and give us feedback on its performance or suggest improvements in our [Discord server](https://discord.gg/NN3ABHggMK).
-* **Contribute Code**
-   * Check out our [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute code to the project.
-   * Submit pull requests for bug fixes, features, or documentation improvements.
-
-
-We believe in the power of open source and community collaboration.  Join us in building the future of web automation!
-
+**Ways to contribute**:
+- Report bugs and feature requests
+- Submit pull requests for improvements
+- Add integration tests
+- Improve documentation
+- Share usage examples
 
 ## 🔒 Security
 
-If you discover a security vulnerability, please **DO NOT** disclose it publicly through issues, pull requests, or discussions.
-
-Instead, please create a [GitHub Security Advisory](https://github.com/algonius/algonius-browser/security/advisories/new) to report the vulnerability responsibly. This allows us to address the issue before it's publicly disclosed.
-
-We appreciate your help in keeping Algonius Browser and its users safe!
+For security vulnerabilities, please create a [GitHub Security Advisory](https://github.com/algonius/algonius-browser/security/advisories/new) rather than opening a public issue.
 
 ## 💬 Community
 
-Join our growing community of developers and users:
-
-- [Discord](https://discord.gg/NN3ABHggMK) - Chat with team and community
-- [Twitter](https://x.com/nanobrowser_ai) - Follow for updates and announcements
+- [Discord](https://discord.gg/NN3ABHggMK) - Chat with developers and users
 - [GitHub Discussions](https://github.com/algonius/algonius-browser/discussions) - Share ideas and ask questions
-
-## 👏 Acknowledgments
-
-Algonius Browser builds on top of other awesome open-source projects:
-
-- [Nanobrowser](https://github.com/nanobrowser/nanobrowser) - The original project that Algonius Browser is forked from
-- [Browser Use](https://github.com/browser-use/browser-use)
-- [Puppeteer](https://github.com/EmergenceAI/Agent-E)
-- [Chrome Extension Boilerplate](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite)
-- [LangChain](https://github.com/langchain-ai/langchainjs)
-
-Huge thanks to their creators and contributors!
-
 
 ## 📄 License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
-Made with ❤️ by the Algonius Browser Team. 
+## 👏 Acknowledgments
 
-Like Algonius Browser? Give us a star 🌟 and join us in [Discord](https://discord.gg/NN3ABHggMK) | [X](https://x.com/nanobrowser_ai)
+Built with these excellent open-source projects:
+- [Chrome Extension Boilerplate](https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
+
+---
+
+**Made with ❤️ by the Algonius Browser Team**
+
+Give us a star 🌟 if this project helps you build better browser automation!

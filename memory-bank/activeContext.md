@@ -8,6 +8,7 @@
 - **Streamlined Architecture**: Focused project purely on MCP browser automation capabilities
 - **Cleaned Codebase**: Removed unnecessary directories and dependencies
 - **Simplified UI**: Kept only essential MCP host control popup interface
+- **Updated Documentation**: Rewrote README.md to focus purely on MCP browser automation capabilities
 
 ## System Architecture (Post-Refactoring)
 ```

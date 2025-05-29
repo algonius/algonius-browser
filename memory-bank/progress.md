@@ -29,6 +29,7 @@
 - **Cleaned Codebase**: Removed unused directories (agent/, side-panel/, options/)
 - **Updated Manifest**: Streamlined Chrome extension manifest
 - **Maintained Popup**: Simple MCP host control interface only
+- **Rewrote Documentation**: Completely updated README.md to focus on MCP browser automation
 
 ## Current State
 - **System Status**: Fully functional MCP browser automation
