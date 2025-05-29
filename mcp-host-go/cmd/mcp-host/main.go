@@ -25,10 +25,10 @@ const (
 	Name = "dev.nanobrowser.mcp.host"
 
 	// Default SSE port
-	DefaultSSEPort = ":7890"
+	DefaultSSEPort = ":9333"
 
 	// Default SSE base URL
-	DefaultSSEBaseURL = "http://localhost:7890/sse"
+	DefaultSSEBaseURL = "http://localhost:9333/sse"
 )
 
 // Container is a dependency injection container

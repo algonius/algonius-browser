@@ -5,9 +5,9 @@ set -e
 # Set variables
 PACKAGE_NAME="github.com/algonius/algonius-browser/mcp-host-go"
 BINARY_NAME="mcp-host"
-INSTALL_DIR="${HOME}/.nanobrowser/bin"
+INSTALL_DIR="${HOME}/.algonius-browser/bin"
 MANIFEST_DIR="${HOME}/.config/google-chrome/NativeMessagingHosts"
-MANIFEST_NAME="dev.nanobrowser.mcp.host.json"
+MANIFEST_NAME="ai.algonius.mcp.host.json"
 MANIFEST_SOURCE="$(pwd)/manifest/${MANIFEST_NAME}"
 
 # Colors
