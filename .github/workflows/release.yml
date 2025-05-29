@@ -89,7 +89,9 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: |
             dist-zip/*.zip
+            dist-zip/*.xpi
             packages/zipper/dist/*.zip
+            packages/zipper/dist/*.xpi
           retention-days: 30
 
   build-go-host:
@@ -229,9 +231,9 @@ jobs:
           fi
           
           # Rename Firefox extension
-          FIREFOX_ZIP=$(find artifacts/firefox-extension -name "*.zip" | head -1)
+          FIREFOX_ZIP=$(find artifacts/firefox-extension -name "*.xpi" | head -1)
           if [ -n "$FIREFOX_ZIP" ]; then
-            cp "$FIREFOX_ZIP" release-assets/algonius-browser-firefox-v$VERSION.zip
+            cp "$FIREFOX_ZIP" release-assets/algonius-browser-firefox-v$VERSION.xpi
             echo "Copied Firefox extension: $FIREFOX_ZIP"
           else
             echo "Warning: Firefox extension zip not found"
@@ -259,7 +261,7 @@ jobs:
           
           **Browser Extensions:**
           - Chrome Extension: \`algonius-browser-chrome-v${VERSION}.zip\`
-          - Firefox Extension: \`algonius-browser-firefox-v${VERSION}.zip\`
+          - Firefox Extension: \`algonius-browser-firefox-v${VERSION}.xpi\`
           
           **MCP Host (for external AI integration):**
           - Linux (x64): \`mcp-host-linux-amd64\`
