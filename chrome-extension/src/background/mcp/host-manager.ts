@@ -127,7 +127,7 @@ export class McpHostManager {
     return new Promise((resolve, reject) => {
       // Connect to the native messaging host
       // Note: connectNative always returns a Port object even if the host doesn't exist
-      this.port = chrome.runtime.connectNative('dev.nanobrowser.mcp.host');
+      this.port = chrome.runtime.connectNative('ai.algonius.mcp.host');
 
       // Setup message handler
       this.port.onMessage.addListener(this.handleMessage.bind(this));

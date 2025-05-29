@@ -7,10 +7,10 @@ set -e
 
 # Configuration
 REPO="algonius/algonius-browser"
-INSTALL_DIR="${HOME}/.nanobrowser/bin"
+INSTALL_DIR="${HOME}/.algonius-browser/bin"
 MANIFEST_DIR="${HOME}/.config/google-chrome/NativeMessagingHosts"
 CHROMIUM_MANIFEST_DIR="${HOME}/.config/chromium/NativeMessagingHosts"
-MANIFEST_NAME="dev.nanobrowser.mcp.host.json"
+MANIFEST_NAME="ai.algonius.mcp.host.json"
 BINARY_NAME="mcp-host"
 
 # Colors for output
@@ -93,18 +93,24 @@ download_binary() {
   local download_url="https://github.com/${REPO}/releases/download/v${version}/${binary_name}"
   local temp_file="/tmp/${binary_name}"
   
-  log "Downloading from: ${download_url}"
+  # Log to stderr to avoid polluting the return value
+  log "Downloading from: ${download_url}" >&2
   
   if command -v curl &> /dev/null; then
-    if ! curl -L -o "${temp_file}" "${download_url}"; then
+    if ! curl -L -o "${temp_file}" "${download_url}" 2>/dev/null; then
       error "Failed to download binary from ${download_url}"
     fi
   elif command -v wget &> /dev/null; then
-    if ! wget -O "${temp_file}" "${download_url}"; then
+    if ! wget -O "${temp_file}" "${download_url}" 2>/dev/null; then
       error "Failed to download binary from ${download_url}"
     fi
   else
     error "Neither curl nor wget is available. Please install one of them."
+  fi
+  
+  # Verify the file was downloaded successfully
+  if [ ! -f "${temp_file}" ]; then
+    error "Download failed: ${temp_file} was not created"
   fi
   
   echo "${temp_file}"
@@ -116,7 +122,7 @@ create_manifest() {
   
   cat > "${manifest_path}" << EOF
 {
-  "name": "dev.nanobrowser.mcp.host",
+  "name": "ai.algonius.mcp.host",
   "description": "Algonius Browser MCP Native Messaging Host",
   "path": "${INSTALL_DIR}/${BINARY_NAME}",
   "type": "stdio",
@@ -292,7 +298,13 @@ main() {
   
   # Download binary
   log "Downloading MCP host binary..."
-  local temp_binary=$(download_binary "$version" "$platform")
+  local temp_binary
+  temp_binary=$(download_binary "$version" "$platform")
+  
+  # Debug: Check if file exists
+  if [ ! -f "$temp_binary" ]; then
+    error "Downloaded file not found: $temp_binary"
+  fi
   
   # Install binary
   log "Installing binary to: ${INSTALL_DIR}/${BINARY_NAME}"
