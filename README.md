@@ -20,22 +20,36 @@ Algonius Browser is an open-source MCP (Model Context Protocol) server that prov
 - **MCP Protocol Integration**: Standard interface for AI systems to control browser automation
 - **Chrome Extension**: Background service worker that handles browser interactions
 - **Native Messaging**: Go-based MCP host that bridges Chrome extension with external tools
-- **Comprehensive Tool Set**: 7 essential browser automation tools
+- **Comprehensive Tool Set**: 5 browser automation tools + 2 MCP resources
 - **Type Safety**: Full TypeScript implementation with structured error handling
 - **Testing Suite**: Comprehensive integration tests for all functionality
 
 ## 🛠️ Available MCP Tools
 
-### Navigation & State
+### Navigation & Tabs
 - **`navigate_to`**: Navigate to URLs with configurable timeout handling
-- **`get_browser_state`**: Get current browser state including active tabs and page information
 - **`manage_tabs`**: Create, close, and switch between browser tabs
 
 ### DOM Interaction  
-- **`get_dom_state`**: Extract DOM structure and elements with pagination support
+- **`get_dom_extra_elements`**: Advanced DOM element extraction with pagination and filtering
 - **`click_element`**: Click DOM elements using CSS selectors or text matching
 - **`set_value`**: Set values in input fields, textareas, and form elements
 - **`scroll_page`**: Scroll pages up or down with customizable distances
+
+## 📋 Available MCP Resources
+
+### Browser State Resources
+- **`browser://current/state`**: Complete current browser state in AI-friendly Markdown format
+  - Active tab information
+  - All browser tabs with URLs, titles, and status
+  - Real-time state updates via resource notifications
+
+- **`browser://dom/state`**: Current DOM state overview in Markdown format
+  - Page metadata (URL, title, scroll position)
+  - First 20 interactive elements
+  - Total element count with "more available" indicators
+  - Simplified DOM structure
+  - Auto-updates when page changes
 
 ## 🚀 Quick Start
 
@@ -87,8 +101,9 @@ mcp-host-go --version
 
 ### Using with AI Assistants
 
-Once installed, AI systems can use the browser automation tools through the MCP protocol:
+Once installed, AI systems can use the browser automation tools and resources through the MCP protocol:
 
+**Tool Usage**:
 ```json
 {
   "method": "tools/call",
@@ -102,19 +117,43 @@ Once installed, AI systems can use the browser automation tools through the MCP 
 }
 ```
 
+**Resource Access**:
+```json
+{
+  "method": "resources/read",
+  "params": {
+    "uri": "browser://current/state"
+  }
+}
+```
+
 ### Common Workflows
 
 **Web Scraping**:
 1. `navigate_to` → Navigate to target site
-2. `get_dom_state` → Extract page content
-3. `click_element` → Interact with elements
-4. `get_dom_state` → Extract updated content
+2. Read `browser://dom/state` → Get page overview
+3. `get_dom_extra_elements` → Get specific elements with pagination
+4. `click_element` → Interact with elements
+5. Read `browser://dom/state` → Extract updated content
 
 **Form Automation**:
 1. `navigate_to` → Go to form page
-2. `set_value` → Fill form fields
-3. `click_element` → Submit form
-4. `get_browser_state` → Verify completion
+2. Read `browser://dom/state` → Identify form elements
+3. `set_value` → Fill form fields
+4. `click_element` → Submit form
+5. Read `browser://current/state` → Verify completion
+
+**Multi-Tab Management**:
+1. Read `browser://current/state` → Check current tabs
+2. `manage_tabs` → Create/switch tabs
+3. `navigate_to` → Load content in each tab
+4. Read `browser://current/state` → Monitor all tab states
+
+**Page Navigation with Scrolling**:
+1. `navigate_to` → Go to target page
+2. Read `browser://dom/state` → Get initial page state
+3. `scroll_page` → Scroll to load more content
+4. `get_dom_extra_elements` → Extract newly loaded elements
 
 ## 🏗️ Architecture
 
