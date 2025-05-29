@@ -1,7 +1,8 @@
-<h1 align="center">
-    <img src="https://github.com/user-attachments/assets/1b2b1bc0-c7b4-4a45-83f5-4a6161831535" height="100" width="375" alt="Algonius Browser Banner" /><br>
-    MCP Browser Automation
-</h1>
+<div align="center">
+    <img src="https://github.com/user-attachments/assets/1b2b1bc0-c7b4-4a45-83f5-4a6161831535" width="600" alt="Algonius Browser Banner" />
+</div>
+
+<h1 align="center">MCP Browser Automation</h1>
 
 <div align="center">
 
