@@ -194,6 +194,36 @@ With the set_value tool implementation complete, the project is ready for the ne
 
 ## Recent Progress
 
+### DOM Extra Elements Tool - Markdown Output Enhancement (2025-05-29)
+Successfully enhanced the `get_dom_extra_elements` MCP tool to return AI-friendly markdown format instead of JSON:
+
+**Enhancement Details**:
+1. **Markdown Output Format**: Replaced JSON serialization with structured markdown generation
+2. **AI-Friendly Structure**: Created hierarchical markdown with clear sections for better AI comprehension
+3. **Element Information Display**: Enhanced element presentation with titles, types, attributes, and action descriptions
+4. **Navigation Guidance**: Added pagination navigation information in readable format
+5. **Comprehensive Helper Functions**: Implemented helper methods for element data extraction and formatting
+6. **Fixed Element Filtering**: Corrected filtering logic to use tagName field and map 'a' tags to 'link' type
+
+**Technical Implementation**:
+- **generateMarkdown()**: Main method generating structured markdown from result data
+- **Element Helpers**: getElementIndex(), getElementTagName(), getElementText(), getElementAttributes()
+- **Formatting Helpers**: formatElementTitle(), generateActionDescription(), generateNavigationText()
+- **Enhanced Filtering**: Fixed element type filtering to correctly map HTML tag names to filter types
+- **Maintained Functionality**: All existing pagination and filtering features preserved
+
+**Benefits Achieved**:
+- **Better AI Integration**: Markdown format is more accessible to AI systems than JSON
+- **Improved Readability**: Human-readable format aids in debugging and development
+- **Structured Information**: Clear hierarchy and sections make element data easier to process
+- **Action Guidance**: Each element includes suggested actions for AI systems
+- **Navigation Clarity**: Clear pagination instructions for accessing additional elements
+
+**Files Modified**:
+- `mcp-host-go/pkg/tools/get_dom_extra_elements.go` - Enhanced with markdown generation and helper functions
+
+**Testing Results**: All integration tests pass, confirming the tool maintains full functionality while providing enhanced AI-friendly output format.
+
 ### Click Element Test Fixes (2025-05-29)
 Successfully fixed all failing tests in the click_element integration test suite:
 

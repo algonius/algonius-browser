@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/algonius/algonius-browser/mcp-host-go/pkg/logger"
 	"github.com/algonius/algonius-browser/mcp-host-go/pkg/types"
@@ -131,18 +132,14 @@ func (t *GetDomExtraElementsTool) Execute(arguments map[string]interface{}) (typ
 		zap.Int("returnedElements", len(result.Elements)),
 		zap.Int("currentPage", result.Pagination.CurrentPage))
 
-	// Convert result to JSON string for the ToolResult
-	resultJSON, err := json.Marshal(result)
-	if err != nil {
-		t.logger.Error("Error marshaling result to JSON", zap.Error(err))
-		return types.ToolResult{}, fmt.Errorf("failed to marshal result: %w", err)
-	}
+	// Generate markdown format
+	markdownText := t.generateMarkdown(result)
 
 	return types.ToolResult{
 		Content: []types.ToolResultItem{
 			{
 				Type: "text",
-				Text: string(resultJSON),
+				Text: markdownText,
 			},
 		},
 	}, nil
@@ -289,9 +286,20 @@ func (t *GetDomExtraElementsTool) applyPaginationAndFiltering(data DomStateData,
 	if params.ElementType != "all" {
 		filteredElements := make([]map[string]interface{}, 0)
 		for _, element := range elements {
-			if elementType, exists := element["type"]; exists {
-				if typeStr, ok := elementType.(string); ok && typeStr == params.ElementType {
-					filteredElements = append(filteredElements, element)
+			// Look for tagName field to match element type
+			if tagName, exists := element["tagName"]; exists {
+				if tagStr, ok := tagName.(string); ok {
+					// Map tagName to element type filter
+					var elementType string
+					switch tagStr {
+					case "a":
+						elementType = "link"
+					default:
+						elementType = tagStr
+					}
+					if elementType == params.ElementType {
+						filteredElements = append(filteredElements, element)
+					}
 				}
 			}
 		}
@@ -361,4 +369,208 @@ func (t *GetDomExtraElementsTool) calculateTotalPages(totalElements, pageSize in
 	}
 	// Manual ceiling calculation: (totalElements + pageSize - 1) / pageSize
 	return (totalElements + pageSize - 1) / pageSize
+}
+
+// generateMarkdown generates AI-friendly markdown format from the result
+func (t *GetDomExtraElementsTool) generateMarkdown(result ExtraElementsResult) string {
+	var content strings.Builder
+
+	// Title with pagination info
+	content.WriteString(fmt.Sprintf("# DOM Elements - Page %d of %d\n\n", result.Pagination.CurrentPage, result.Pagination.TotalPages))
+
+	// Summary info
+	filterText := "all types"
+	if result.Filter != nil {
+		filterText = result.Filter.ElementType
+	}
+	content.WriteString(fmt.Sprintf("**Total Found**: %d elements | **Showing**: Elements %d-%d | **Filter**: %s\n\n",
+		result.Pagination.TotalElements,
+		result.Pagination.StartIndex,
+		result.Pagination.EndIndex,
+		filterText))
+
+	// Separator
+	content.WriteString("---\n\n")
+
+	// Elements section
+	if len(result.Elements) == 0 {
+		content.WriteString("## No Elements Found\n\n")
+		content.WriteString("No interactive elements match the current filter criteria.\n\n")
+	} else {
+		content.WriteString("## Elements\n\n")
+
+		for i, element := range result.Elements {
+			// Get element properties
+			index := t.getElementIndex(element)
+			tagName := t.getElementTagName(element)
+			text := t.getElementText(element)
+			attributes := t.getElementAttributes(element)
+
+			// Element header with index and type
+			elementTitle := fmt.Sprintf("### [%d] %s", index, t.formatElementTitle(tagName, text))
+			content.WriteString(elementTitle + "\n")
+
+			// Element details on one line
+			details := fmt.Sprintf("**Type**: %s", tagName)
+			if text != "" {
+				details += fmt.Sprintf(" | **Text**: \"%s\"", text)
+			}
+			content.WriteString(details + "  \n")
+
+			// Attributes if present
+			if attributes != "" {
+				content.WriteString(fmt.Sprintf("**Attributes**: `%s`  \n", attributes))
+			}
+
+			// Action description
+			action := t.generateActionDescription(tagName, text, attributes)
+			if action != "" {
+				content.WriteString(fmt.Sprintf("**Action**: %s\n", action))
+			}
+
+			// Add spacing between elements except for the last one
+			if i < len(result.Elements)-1 {
+				content.WriteString("\n")
+			}
+		}
+	}
+
+	// Navigation section
+	content.WriteString("\n---\n\n")
+	navigation := t.generateNavigationText(result.Pagination)
+	content.WriteString(fmt.Sprintf("**Navigation**: %s\n", navigation))
+
+	return content.String()
+}
+
+// Helper functions for markdown generation
+
+func (t *GetDomExtraElementsTool) getElementIndex(element map[string]interface{}) int {
+	if index, exists := element["index"]; exists {
+		if indexFloat, ok := index.(float64); ok {
+			return int(indexFloat)
+		}
+	}
+	return 0
+}
+
+func (t *GetDomExtraElementsTool) getElementTagName(element map[string]interface{}) string {
+	if tagName, exists := element["tagName"]; exists {
+		if tagStr, ok := tagName.(string); ok {
+			return tagStr
+		}
+	}
+	return "unknown"
+}
+
+func (t *GetDomExtraElementsTool) getElementText(element map[string]interface{}) string {
+	if text, exists := element["text"]; exists {
+		if textStr, ok := text.(string); ok {
+			return strings.TrimSpace(textStr)
+		}
+	}
+	return ""
+}
+
+func (t *GetDomExtraElementsTool) getElementAttributes(element map[string]interface{}) string {
+	if attrs, exists := element["attributes"]; exists {
+		if attrMap, ok := attrs.(map[string]interface{}); ok {
+			var attrParts []string
+			for key, value := range attrMap {
+				if valueStr, ok := value.(string); ok && valueStr != "" {
+					attrParts = append(attrParts, fmt.Sprintf(`%s="%s"`, key, valueStr))
+				}
+			}
+			return strings.Join(attrParts, " ")
+		}
+	}
+	return ""
+}
+
+func (t *GetDomExtraElementsTool) formatElementTitle(tagName, text string) string {
+	switch tagName {
+	case "button":
+		if text != "" {
+			return fmt.Sprintf("%s Button", text)
+		}
+		return "Button"
+	case "input":
+		return "Input Field"
+	case "a":
+		if text != "" {
+			return fmt.Sprintf("%s Link", text)
+		}
+		return "Link"
+	case "select":
+		if text != "" {
+			return fmt.Sprintf("%s Select", text)
+		}
+		return "Select Dropdown"
+	case "textarea":
+		return "Text Area"
+	default:
+		if text != "" {
+			return fmt.Sprintf("%s (%s)", text, tagName)
+		}
+		return strings.Title(tagName)
+	}
+}
+
+func (t *GetDomExtraElementsTool) generateActionDescription(tagName, text, attributes string) string {
+	switch tagName {
+	case "button":
+		if strings.Contains(attributes, `type="submit"`) {
+			return "Click to submit form"
+		}
+		return "Click to perform action"
+	case "input":
+		if strings.Contains(attributes, `type="email"`) {
+			return "Enter email address"
+		} else if strings.Contains(attributes, `type="password"`) {
+			return "Enter password"
+		} else if strings.Contains(attributes, `type="text"`) {
+			return "Enter text input"
+		}
+		return "Enter input value"
+	case "a":
+		if strings.Contains(attributes, `href=`) {
+			return "Click to navigate to link"
+		}
+		return "Click to activate link"
+	case "select":
+		return "Click to open dropdown and select option"
+	case "textarea":
+		return "Click to enter multi-line text"
+	default:
+		return "Click to interact with element"
+	}
+}
+
+func (t *GetDomExtraElementsTool) generateNavigationText(pagination PaginationInfo) string {
+	var parts []string
+
+	// Previous page
+	if pagination.HasPreviousPage {
+		parts = append(parts, fmt.Sprintf("Previous: page=%d", pagination.CurrentPage-1))
+	} else {
+		parts = append(parts, "Previous: N/A")
+	}
+
+	// Next page
+	if pagination.HasNextPage {
+		parts = append(parts, fmt.Sprintf("Next: page=%d", pagination.CurrentPage+1))
+	} else {
+		parts = append(parts, "Next: N/A")
+	}
+
+	// Page range
+	if pagination.TotalPages > 1 {
+		pageRange := make([]string, pagination.TotalPages)
+		for i := 1; i <= pagination.TotalPages; i++ {
+			pageRange[i-1] = fmt.Sprintf("%d", i)
+		}
+		parts = append(parts, fmt.Sprintf("Pages: %s", strings.Join(pageRange, ", ")))
+	}
+
+	return strings.Join(parts, " | ")
 }
