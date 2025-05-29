@@ -99,6 +99,48 @@ To get the most recent version with all the latest features:
     * Unzip and replace your existing Algonius Browser files with the new ones.
     * Go to `chrome://extensions/` in Chrome and click the refresh icon on the Algonius Browser card.
 
+## 🔗 MCP Host Installation (For External AI Integration)
+
+If you want to integrate Algonius Browser with external AI systems via the Model Context Protocol (MCP), you'll need to install the MCP Host component.
+
+### One-Click Installation (Recommended)
+
+```bash
+# Download and install the latest MCP Host automatically
+curl -fsSL https://raw.githubusercontent.com/algonius/algonius-browser/master/install-mcp-host.sh | bash
+```
+
+Or using wget:
+```bash
+wget -qO- https://raw.githubusercontent.com/algonius/algonius-browser/master/install-mcp-host.sh | bash
+```
+
+### Manual Installation Options
+
+```bash
+# Install specific version
+./install-mcp-host.sh --version 1.2.3
+
+# Uninstall
+./install-mcp-host.sh --uninstall
+
+# View help
+./install-mcp-host.sh --help
+```
+
+**What the installer does:**
+- Automatically detects your OS and architecture (Linux, macOS, Windows)
+- Downloads the appropriate pre-compiled binary from GitHub releases
+- Installs Native Messaging manifests for Chrome, Chromium, and Edge
+- Sets up all necessary permissions and configurations
+
+**Supported platforms:**
+- Linux x86_64
+- macOS Intel (x86_64) and Apple Silicon (arm64)
+- Windows x86_64
+
+For detailed installation instructions and troubleshooting, see [INSTALL-MCP-HOST.md](./INSTALL-MCP-HOST.md).
+
 ## 🛠️ Build from Source
 
 If you prefer to build Algonius Browser yourself, follow these steps:
