@@ -127,7 +127,7 @@ create_manifest() {
   "path": "${INSTALL_DIR}/${BINARY_NAME}",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://neiiiibdmgkoabmaodedfkgomofhcbal/"
+    "chrome-extension://pifafhbidlgencpljdgglppkjjaadcmc/"
   ]
 }
 EOF
