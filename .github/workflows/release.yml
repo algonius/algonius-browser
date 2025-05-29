@@ -88,7 +88,7 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: |
-            chrome-extension/dist/*.zip
+            dist-zip/*.zip
             packages/zipper/dist/*.zip
           retention-days: 30
 
