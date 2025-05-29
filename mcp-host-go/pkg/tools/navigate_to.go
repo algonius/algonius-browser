@@ -15,12 +15,14 @@ type NavigateToTool struct {
 	description string
 	logger      logger.Logger
 	messaging   types.Messaging
+	domStateRes types.Resource
 }
 
 // NavigateToConfig contains configuration for NavigateToTool
 type NavigateToConfig struct {
-	Logger    logger.Logger
-	Messaging types.Messaging
+	Logger      logger.Logger
+	Messaging   types.Messaging
+	DomStateRes types.Resource
 }
 
 // NewNavigateToTool creates a new NavigateToTool
@@ -33,11 +35,16 @@ func NewNavigateToTool(config NavigateToConfig) (*NavigateToTool, error) {
 		return nil, fmt.Errorf("messaging is required")
 	}
 
+	if config.DomStateRes == nil {
+		return nil, fmt.Errorf("domStateRes is required")
+	}
+
 	return &NavigateToTool{
 		name:        "navigate_to",
 		description: "Navigate to a specified URL",
 		logger:      config.Logger,
 		messaging:   config.Messaging,
+		domStateRes: config.DomStateRes,
 	}, nil
 }
 
@@ -65,6 +72,11 @@ func (t *NavigateToTool) GetInputSchema() interface{} {
 				"description": "Navigation timeout: 'auto' for intelligent detection or timeout in milliseconds (e.g. '5000')",
 				"default":     "auto",
 			},
+			"return_dom_state": map[string]interface{}{
+				"type":        "boolean",
+				"description": "Whether to return DOM state content after successful navigation",
+				"default":     false,
+			},
 		},
 		"required":             []string{"url"},
 		"additionalProperties": false,
@@ -87,6 +99,12 @@ func (t *NavigateToTool) Execute(args map[string]interface{}) (types.ToolResult,
 		timeoutStr = timeoutArg
 	}
 
+	// Handle return_dom_state parameter
+	returnDomState := false // default value
+	if returnDomStateArg, ok := args["return_dom_state"].(bool); ok {
+		returnDomState = returnDomStateArg
+	}
+
 	// Parse timeout value
 	var rpcTimeout int
 	if timeoutStr == "auto" {
@@ -103,7 +121,7 @@ func (t *NavigateToTool) Execute(args map[string]interface{}) (types.ToolResult,
 		}
 	}
 
-	t.logger.Info("Navigate to URL with timeout", zap.String("url", url), zap.String("timeout", timeoutStr), zap.Int("rpcTimeout", rpcTimeout))
+	t.logger.Info("Navigate to URL with timeout", zap.String("url", url), zap.String("timeout", timeoutStr), zap.Int("rpcTimeout", rpcTimeout), zap.Bool("return_dom_state", returnDomState))
 
 	// Send RPC request to the extension
 	resp, err := t.messaging.RpcRequest(types.RpcRequest{
@@ -124,12 +142,41 @@ func (t *NavigateToTool) Execute(args map[string]interface{}) (types.ToolResult,
 		return types.ToolResult{}, fmt.Errorf("RPC error: %s", resp.Error.Message)
 	}
 
-	// Return enhanced result
+	// Base success message
+	successText := fmt.Sprintf("Successfully navigated to %s (strategy: %s)", url, timeoutStr)
+
+	// If return_dom_state is true, get DOM state content
+	if returnDomState {
+		t.logger.Info("Getting DOM state after navigation", zap.String("url", url))
+
+		domContent, err := t.domStateRes.Read()
+		if err != nil {
+			t.logger.Error("Failed to get DOM state after navigation", zap.Error(err))
+			// Still return success for navigation, but include error info
+			successText += fmt.Sprintf("\n\nNote: Failed to retrieve DOM state: %s", err.Error())
+		} else if len(domContent.Contents) > 0 {
+			// Return both navigation success and DOM state
+			return types.ToolResult{
+				Content: []types.ToolResultItem{
+					{
+						Type: "text",
+						Text: successText,
+					},
+					{
+						Type: "text",
+						Text: "\n\n--- DOM State ---\n\n" + domContent.Contents[0].Text,
+					},
+				},
+			}, nil
+		}
+	}
+
+	// Return standard result (no DOM state requested or DOM state failed)
 	return types.ToolResult{
 		Content: []types.ToolResultItem{
 			{
 				Type: "text",
-				Text: fmt.Sprintf("Successfully navigated to %s (strategy: %s)", url, timeoutStr),
+				Text: successText,
 			},
 		},
 	}, nil

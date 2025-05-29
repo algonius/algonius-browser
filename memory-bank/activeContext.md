@@ -1,8 +1,81 @@
 # Active Context: Algonius Browser
 
-## Current Work Focus - Manage Tabs Tool Implementation Complete ✅
+## Current Work Focus - Click Element Tool Enhancement Complete ✅
 
-### Latest Achievement: Manage Tabs Tool Implementation (2025-05-28 08:30)
+### Latest Achievement: Click Element Tool Return DOM State Feature (2025-05-29 21:48)
+Successfully enhanced the existing `click_element` MCP tool to include optional DOM state retrieval after successful clicks, providing immediate feedback on page changes to external AI systems.
+
+#### Click Element Return DOM State Enhancement - 2025-05-29 21:48
+- ✅ **Parameter Addition**: Added `return_dom_state` boolean parameter with default value false
+- ✅ **DOM State Integration**: Integrated existing DOM state resource for post-click state retrieval
+- ✅ **Backward Compatibility**: Maintained full backward compatibility with existing tool usage
+- ✅ **Enhanced Response**: Added DOM state content as second result item when requested
+- ✅ **Comprehensive Testing**: Created extensive test suite covering all parameter combinations
+- ✅ **Error Handling**: Robust error handling ensures click success even if DOM state retrieval fails
+
+#### Technical Implementation Details
+1. **Tool Enhancement (`mcp-host-go/pkg/tools/click_element.go`)**:
+   - **New Parameter**: Added `return_dom_state` boolean parameter to input schema with default false
+   - **DOM State Integration**: Added `DomStateRes` dependency to ClickElementTool struct and constructor
+   - **Conditional Logic**: Implemented conditional DOM state fetching based on parameter value
+   - **Response Enhancement**: Modified response structure to include DOM state as second content item
+   - **Error Resilience**: DOM state retrieval failures don't affect click operation success
+   - **Validation**: Added parameter type validation for `return_dom_state`
+
+2. **Main.go Update (`mcp-host-go/cmd/mcp-host/main.go`)**:
+   - **Dependency Injection**: Added `DomStateRes` to ClickElementTool configuration
+   - **Resource Availability**: Leveraged existing DOM state resource registration
+
+3. **Comprehensive Testing (`mcp-host-go/tests/integration/click_element_test.go`)**:
+   - **TestClickElementToolReturnDomState**: New test function with 4 sub-tests
+   - **Default Behavior**: Verified default behavior (no DOM state) remains unchanged
+   - **Explicit False**: Tested explicit `return_dom_state=false` parameter
+   - **True Parameter**: Tested `return_dom_state=true` with DOM state content verification
+   - **Parameter Validation**: Tested invalid parameter type handling
+   - **Mock Handlers**: Enhanced test environment with both click_element and get_dom_state handlers
+
+4. **Response Format Enhancement**:
+   - **Standard Response**: Click result with execution details, element info, and page change status
+   - **Enhanced Response**: When `return_dom_state=true`, includes second content item with DOM state
+   - **Clear Separation**: DOM state content clearly marked with "--- DOM State ---" separator
+   - **Error Resilience**: Failed DOM state retrieval adds note to click result instead of failing
+
+#### Benefits Achieved
+- **Immediate Feedback**: AI systems get instant feedback on page state changes after clicks
+- **Workflow Optimization**: Reduces need for separate DOM state calls after critical clicks
+- **Backward Compatibility**: Existing integrations continue working without changes
+- **Performance Option**: Optional feature allows users to choose when to fetch DOM state
+- **Consistent Pattern**: Follows same pattern as navigate_to tool for consistency
+- **Error Resilience**: Robust error handling ensures reliable click operations
+
+#### Usage Examples
+```json
+// Default behavior (no DOM state)
+{
+  "element_index": 1,
+  "wait_after": 2.0
+}
+
+// With DOM state retrieval
+{
+  "element_index": 1,
+  "wait_after": 2.0,
+  "return_dom_state": true
+}
+```
+
+#### Test Results Summary
+```
+=== Click Element Tool Enhancement Test Results ===
+✅ TestClickElementToolReturnDomState/click_without_return_dom_state - Default behavior verified
+✅ TestClickElementToolReturnDomState/click_with_return_dom_state_false - Explicit false verified
+✅ TestClickElementToolReturnDomState/click_with_return_dom_state_true - DOM state inclusion verified
+✅ TestClickElementToolReturnDomState/invalid_return_dom_state_parameter - Parameter validation verified
+✅ All existing click_element tests continue passing (7.570s total runtime)
+✅ Build verification successful
+```
+
+### Previous Achievement: Manage Tabs Tool Implementation (2025-05-28 08:30)
 Successfully implemented the new `manage_tabs` MCP tool to provide comprehensive browser tab management capabilities to external AI systems.
 
 #### Manage Tabs Tool Implementation - 2025-05-28 08:30

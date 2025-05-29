@@ -290,8 +290,9 @@ func initContainer(startTime time.Time) (*Container, error) {
 	}
 
 	navigateTool, err := tools.NewNavigateToTool(tools.NavigateToConfig{
-		Logger:    toolLogger,
-		Messaging: container.Messaging,
+		Logger:      toolLogger,
+		Messaging:   container.Messaging,
+		DomStateRes: container.DomStateRes,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create navigate_to tool: %w", err)
@@ -317,8 +318,9 @@ func initContainer(startTime time.Time) (*Container, error) {
 	container.GetDomExtraElements = getDomExtraElements
 
 	clickElementTool, err := tools.NewClickElementTool(tools.ClickElementConfig{
-		Logger:    toolLogger,
-		Messaging: container.Messaging,
+		Logger:      toolLogger,
+		Messaging:   container.Messaging,
+		DomStateRes: container.DomStateRes,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create click_element tool: %w", err)

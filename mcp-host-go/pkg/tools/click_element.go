@@ -15,12 +15,14 @@ type ClickElementTool struct {
 	description string
 	logger      logger.Logger
 	messaging   types.Messaging
+	domStateRes types.Resource
 }
 
 // ClickElementConfig contains configuration for ClickElementTool
 type ClickElementConfig struct {
-	Logger    logger.Logger
-	Messaging types.Messaging
+	Logger      logger.Logger
+	Messaging   types.Messaging
+	DomStateRes types.Resource
 }
 
 // NewClickElementTool creates a new ClickElementTool
@@ -33,11 +35,16 @@ func NewClickElementTool(config ClickElementConfig) (*ClickElementTool, error) {
 		return nil, fmt.Errorf("messaging is required")
 	}
 
+	if config.DomStateRes == nil {
+		return nil, fmt.Errorf("domStateRes is required")
+	}
+
 	return &ClickElementTool{
 		name:        "click_element",
 		description: "Click interactive elements on web pages using element index from DOM state",
 		logger:      config.Logger,
 		messaging:   config.Messaging,
+		domStateRes: config.DomStateRes,
 	}, nil
 }
 
@@ -67,6 +74,11 @@ func (t *ClickElementTool) GetInputSchema() interface{} {
 				"minimum":     0,
 				"maximum":     30,
 				"default":     1,
+			},
+			"return_dom_state": map[string]interface{}{
+				"type":        "boolean",
+				"description": "Whether to return DOM state content after successful click",
+				"default":     false,
 			},
 		},
 		"required":             []string{"element_index"},
@@ -111,6 +123,16 @@ func (t *ClickElementTool) Execute(args map[string]interface{}) (types.ToolResul
 			waitAfter = waitVal
 		} else {
 			return types.ToolResult{}, fmt.Errorf("wait_after must be a number, got: %T", waitAfterArg)
+		}
+	}
+
+	// Extract and validate return_dom_state
+	returnDomState := false // default value
+	if returnDomStateArg, exists := args["return_dom_state"]; exists {
+		if returnVal, ok := returnDomStateArg.(bool); ok {
+			returnDomState = returnVal
+		} else {
+			return types.ToolResult{}, fmt.Errorf("return_dom_state must be a boolean, got: %T", returnDomStateArg)
 		}
 	}
 
@@ -233,12 +255,38 @@ func (t *ClickElementTool) Execute(args map[string]interface{}) (types.ToolResul
 		}
 	}
 
-	return types.ToolResult{
-		Content: []types.ToolResultItem{
-			{
-				Type: "text",
-				Text: responseText,
-			},
+	// Create result content
+	resultContent := []types.ToolResultItem{
+		{
+			Type: "text",
+			Text: responseText,
 		},
+	}
+
+	// If return_dom_state is true, fetch and append DOM state
+	if returnDomState {
+		t.logger.Debug("Fetching DOM state after successful click")
+		domContent, err := t.domStateRes.Read()
+		if err != nil {
+			t.logger.Warn("Failed to get DOM state after click", zap.Error(err))
+			// Don't fail the entire operation, just add a note
+			resultContent[0].Text += "\n\nNote: Failed to retrieve DOM state after click: " + err.Error()
+		} else {
+			// Append DOM state content
+			if len(domContent.Contents) > 0 {
+				resultContent = append(resultContent, types.ToolResultItem{
+					Type: "text",
+					Text: "\n--- DOM State ---\n\n" + domContent.Contents[0].Text,
+				})
+				t.logger.Debug("Successfully appended DOM state to click result")
+			} else {
+				t.logger.Warn("DOM state result is empty")
+				resultContent[0].Text += "\n\nNote: DOM state result is empty"
+			}
+		}
+	}
+
+	return types.ToolResult{
+		Content: resultContent,
 	}, nil
 }

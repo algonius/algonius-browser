@@ -34,6 +34,18 @@ func TestNavigateToToolTimeout(t *testing.T) {
 		}, nil
 	})
 
+	// Register RPC handler for get_dom_state method
+	testEnv.GetNativeMsg().RegisterRpcHandler("get_dom_state", func(params map[string]interface{}) (interface{}, error) {
+		return map[string]interface{}{
+			"formattedDom":        "<html><head><title>Test Page</title></head><body><h1>Test</h1></body></html>",
+			"interactiveElements": []interface{}{},
+			"meta": map[string]interface{}{
+				"url":   "https://example.com",
+				"title": "Test Page",
+			},
+		}, nil
+	})
+
 	// Initialize MCP client
 	err = testEnv.GetMcpClient().Initialize(ctx)
 	require.NoError(t, err)
@@ -111,6 +123,67 @@ func TestNavigateToToolTimeout(t *testing.T) {
 		require.NotNil(t, capturedNavigation, "Navigation should be captured")
 		assert.Equal(t, "https://httpbin.org/delay/1", capturedNavigation["url"])
 		assert.Equal(t, "auto", capturedNavigation["timeout"])
+	})
+
+	t.Run("navigate with return_dom_state=true", func(t *testing.T) {
+		capturedNavigation = nil // Reset
+
+		// Test navigation with DOM state return enabled
+		result, err := testEnv.GetMcpClient().CallTool("navigate_to", map[string]interface{}{
+			"url":              "https://httpbin.org/delay/1",
+			"return_dom_state": true,
+		})
+
+		require.NoError(t, err, "navigate_to tool should succeed")
+		require.False(t, result.IsError, "Tool should not return error")
+
+		// Wait for RPC call to be processed
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify navigation was requested
+		require.NotNil(t, capturedNavigation, "Navigation should be captured")
+		assert.Equal(t, "https://httpbin.org/delay/1", capturedNavigation["url"])
+		assert.Equal(t, "auto", capturedNavigation["timeout"])
+
+		// Verify result contains DOM state
+		require.NotEmpty(t, result.Content, "Result should contain content")
+		if textContent, ok := mcp.AsTextContent(result.Content[0]); ok {
+			assert.Contains(t, textContent.Text, "Successfully navigated")
+		}
+		if len(result.Content) > 1 {
+			if textContent, ok := mcp.AsTextContent(result.Content[1]); ok {
+				assert.Contains(t, textContent.Text, "--- DOM State ---")
+				assert.Contains(t, textContent.Text, "Test Page")
+			}
+		}
+	})
+
+	t.Run("navigate with return_dom_state=false", func(t *testing.T) {
+		capturedNavigation = nil // Reset
+
+		// Test navigation with DOM state return disabled
+		result, err := testEnv.GetMcpClient().CallTool("navigate_to", map[string]interface{}{
+			"url":              "https://httpbin.org/delay/1",
+			"return_dom_state": false,
+		})
+
+		require.NoError(t, err, "navigate_to tool should succeed")
+		require.False(t, result.IsError, "Tool should not return error")
+
+		// Wait for RPC call to be processed
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify navigation was requested
+		require.NotNil(t, capturedNavigation, "Navigation should be captured")
+		assert.Equal(t, "https://httpbin.org/delay/1", capturedNavigation["url"])
+		assert.Equal(t, "auto", capturedNavigation["timeout"])
+
+		// Verify result contains only navigation success (no DOM state)
+		require.NotEmpty(t, result.Content, "Result should contain content")
+		if textContent, ok := mcp.AsTextContent(result.Content[0]); ok {
+			assert.Contains(t, textContent.Text, "Successfully navigated")
+		}
+		assert.Equal(t, 1, len(result.Content), "Should contain only navigation result")
 	})
 }
 

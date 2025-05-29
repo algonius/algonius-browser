@@ -589,11 +589,223 @@ func TestClickElementToolSchema(t *testing.T) {
 		assert.Equal(t, float64(0), waitAfterProp["minimum"])
 		assert.Equal(t, float64(30), waitAfterProp["maximum"])
 
+		// Validate return_dom_state property
+		returnDomStateProp := properties["return_dom_state"].(map[string]interface{})
+		assert.Equal(t, "boolean", returnDomStateProp["type"])
+		assert.Equal(t, false, returnDomStateProp["default"])
+		assert.Contains(t, returnDomStateProp["description"], "return DOM state")
+
 		// Validate required fields
 		required := inputSchema.Required
 		assert.Contains(t, required, "element_index")
-		assert.NotContains(t, required, "wait_after") // wait_after is optional
+		assert.NotContains(t, required, "wait_after")       // wait_after is optional
+		assert.NotContains(t, required, "return_dom_state") // return_dom_state is optional
 
 		t.Log("Successfully validated click_element tool schema")
+	})
+}
+
+func TestClickElementToolReturnDomState(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	// Setup test environment
+	testEnv, err := env.NewMcpHostTestEnvironment(nil)
+	require.NoError(t, err)
+	defer testEnv.Cleanup()
+
+	err = testEnv.Setup(ctx)
+	require.NoError(t, err)
+
+	// Track captured requests
+	var capturedClickRequests []map[string]interface{}
+	var capturedDomRequests []map[string]interface{}
+
+	// Register RPC handlers for both click_element and get_dom_state
+	testEnv.GetNativeMsg().RegisterRpcHandlers(map[string]env.RpcHandler{
+		"click_element": func(params map[string]interface{}) (interface{}, error) {
+			capturedClickRequests = append(capturedClickRequests, params)
+			return map[string]interface{}{
+				"success":       true,
+				"message":       "Successfully clicked element",
+				"element_index": params["element_index"],
+				"page_changed":  true,
+				"element_info": map[string]interface{}{
+					"tag_name": "button",
+					"text":     "Submit",
+					"type":     "submit",
+				},
+				"before_url": "https://example.com/form",
+				"after_url":  "https://example.com/success",
+			}, nil
+		},
+		"get_dom_state": func(params map[string]interface{}) (interface{}, error) {
+			capturedDomRequests = append(capturedDomRequests, params)
+			return map[string]interface{}{
+				"formattedDom":        "[Start of page]\n<h1>Success!</h1>\n<p>Form submitted successfully</p>\n[End of page]",
+				"interactiveElements": []map[string]interface{}{},
+				"meta": map[string]interface{}{
+					"url":         "https://example.com/success",
+					"title":       "Success Page",
+					"tabId":       123,
+					"pixelsAbove": 0,
+					"pixelsBelow": 0,
+				},
+				"screenshot": nil,
+			}, nil
+		},
+	})
+
+	// Initialize MCP client
+	err = testEnv.GetMcpClient().Initialize(ctx)
+	require.NoError(t, err)
+
+	// Verify click_element tool is available
+	tools, err := testEnv.GetMcpClient().ListTools()
+	if err != nil {
+		t.Logf("ListTools failed: %v", err)
+		return
+	}
+
+	found := false
+	for _, tool := range tools.Tools {
+		if tool.Name == "click_element" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Log("click_element tool not found")
+		return
+	}
+
+	// Test click without return_dom_state (default behavior)
+	t.Run("click_without_return_dom_state", func(t *testing.T) {
+		// Clear previous requests
+		capturedClickRequests = nil
+		capturedDomRequests = nil
+
+		// Execute click tool without return_dom_state parameter
+		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
+			"element_index": 1,
+			"wait_after":    1.0,
+		})
+		require.NoError(t, err)
+		assert.False(t, result.IsError, "Tool execution should not result in error")
+
+		// Wait for RPC call to be processed
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify click request was made
+		require.Len(t, capturedClickRequests, 1, "Should have captured exactly one click request")
+		assert.Equal(t, float64(1), capturedClickRequests[0]["element_index"])
+
+		// Verify DOM state was NOT requested (since return_dom_state defaults to false)
+		assert.Len(t, capturedDomRequests, 0, "Should not have captured any DOM state requests")
+
+		// Verify result content does not contain DOM state
+		require.Len(t, result.Content, 1, "Should have exactly one content item")
+		if textContent, ok := mcp.AsTextContent(result.Content[0]); ok {
+			assert.NotContains(t, textContent.Text, "--- DOM State ---")
+			t.Log("Correctly did not include DOM state in result")
+		}
+	})
+
+	// Test click with return_dom_state=false (explicit)
+	t.Run("click_with_return_dom_state_false", func(t *testing.T) {
+		// Clear previous requests
+		capturedClickRequests = nil
+		capturedDomRequests = nil
+
+		// Execute click tool with return_dom_state=false
+		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
+			"element_index":    2,
+			"wait_after":       1.5,
+			"return_dom_state": false,
+		})
+		require.NoError(t, err)
+		assert.False(t, result.IsError, "Tool execution should not result in error")
+
+		// Wait for RPC call to be processed
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify click request was made
+		require.Len(t, capturedClickRequests, 1, "Should have captured exactly one click request")
+		assert.Equal(t, float64(2), capturedClickRequests[0]["element_index"])
+
+		// Verify DOM state was NOT requested
+		assert.Len(t, capturedDomRequests, 0, "Should not have captured any DOM state requests")
+
+		// Verify result content does not contain DOM state
+		require.Len(t, result.Content, 1, "Should have exactly one content item")
+		if textContent, ok := mcp.AsTextContent(result.Content[0]); ok {
+			assert.NotContains(t, textContent.Text, "--- DOM State ---")
+		}
+	})
+
+	// Test click with return_dom_state=true
+	t.Run("click_with_return_dom_state_true", func(t *testing.T) {
+		// Clear previous requests
+		capturedClickRequests = nil
+		capturedDomRequests = nil
+
+		// Execute click tool with return_dom_state=true
+		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
+			"element_index":    1,
+			"wait_after":       2.0,
+			"return_dom_state": true,
+		})
+		require.NoError(t, err)
+		assert.False(t, result.IsError, "Tool execution should not result in error")
+
+		// Wait for RPC call to be processed
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify click request was made
+		require.Len(t, capturedClickRequests, 1, "Should have captured exactly one click request")
+		assert.Equal(t, float64(1), capturedClickRequests[0]["element_index"])
+
+		// Verify DOM state was requested
+		require.Len(t, capturedDomRequests, 1, "Should have captured exactly one DOM state request")
+
+		// Verify result content contains both click result AND DOM state
+		require.Len(t, result.Content, 2, "Should have exactly two content items")
+
+		// Check first content item (click result)
+		if textContent, ok := mcp.AsTextContent(result.Content[0]); ok {
+			assert.Contains(t, textContent.Text, "Click Element Result:")
+			assert.Contains(t, textContent.Text, "Status: Success")
+			assert.Contains(t, textContent.Text, "Element Index: 1")
+			assert.Contains(t, textContent.Text, "Page Changed: true")
+		}
+
+		// Check second content item (DOM state)
+		if textContent, ok := mcp.AsTextContent(result.Content[1]); ok {
+			assert.Contains(t, textContent.Text, "--- DOM State ---")
+			assert.Contains(t, textContent.Text, "Success!")
+			assert.Contains(t, textContent.Text, "Form submitted successfully")
+			t.Log("Successfully included DOM state in result")
+		}
+	})
+
+	// Test invalid return_dom_state parameter
+	t.Run("invalid_return_dom_state_parameter", func(t *testing.T) {
+		// Execute click tool with invalid return_dom_state type
+		result, err := testEnv.GetMcpClient().CallTool("click_element", map[string]interface{}{
+			"element_index":    1,
+			"return_dom_state": "invalid_string",
+		})
+
+		// Should get a parameter validation error
+		if err == nil {
+			assert.True(t, result.IsError, "Tool execution should result in error for invalid parameter type")
+			if len(result.Content) > 0 {
+				if textContent, ok := mcp.AsTextContent(result.Content[0]); ok {
+					assert.Contains(t, textContent.Text, "return_dom_state must be a boolean")
+				}
+			}
+		}
+		t.Log("Correctly validated return_dom_state parameter type")
 	})
 }
