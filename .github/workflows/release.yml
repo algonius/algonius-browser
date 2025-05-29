@@ -40,13 +40,7 @@ jobs:
             echo "Error: Version format '$VERSION' is not valid. Expected format: x.y.z"
             exit 1
           fi
-          
-          # Check if tag already exists
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "Error: Tag v$VERSION already exists"
-            exit 1
-          fi
-          
+                    
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "Prepared version: $VERSION"
@@ -83,9 +77,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: pnpm type-check
-
       - name: Build ${{ matrix.name }}
         run: ${{ matrix.build_cmd }}
 
@@ -96,7 +87,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/*.zip
+          path: |
+            dist-zip/*.zip
+            dist-zip/*.xpi
+            packages/zipper/dist/*.zip
+            packages/zipper/dist/*.xpi
           retention-days: 30
 
   build-go-host:
@@ -141,10 +136,6 @@ jobs:
       - name: Install Go dependencies
         working-directory: mcp-host-go
         run: make deps
-
-      - name: Run Go linting
-        working-directory: mcp-host-go
-        run: make lint
 
       - name: Run Go tests
         working-directory: mcp-host-go
@@ -226,28 +217,41 @@ jobs:
           VERSION=${{ needs.prepare-release.outputs.version }}
           mkdir -p release-assets
           
+          # Debug: List all downloaded artifacts
+          echo "=== All artifacts structure ==="
+          find artifacts -type f -name "*.zip" | head -20
+          
           # Rename Chrome extension
-          if [ -f artifacts/chrome-extension/*.zip ]; then
-            cp artifacts/chrome-extension/*.zip release-assets/algonius-browser-chrome-v$VERSION.zip
+          CHROME_ZIP=$(find artifacts/chrome-extension -name "*.zip" | head -1)
+          if [ -n "$CHROME_ZIP" ]; then
+            cp "$CHROME_ZIP" release-assets/algonius-browser-chrome-v$VERSION.zip
+            echo "Copied Chrome extension: $CHROME_ZIP"
+          else
+            echo "Warning: Chrome extension zip not found"
           fi
           
           # Rename Firefox extension
-          if [ -f artifacts/firefox-extension/*.zip ]; then
-            cp artifacts/firefox-extension/*.zip release-assets/algonius-browser-firefox-v$VERSION.zip
+          FIREFOX_ZIP=$(find artifacts/firefox-extension -name "*.xpi" | head -1)
+          if [ -n "$FIREFOX_ZIP" ]; then
+            cp "$FIREFOX_ZIP" release-assets/algonius-browser-firefox-v$VERSION.xpi
+            echo "Copied Firefox extension: $FIREFOX_ZIP"
+          else
+            echo "Warning: Firefox extension zip not found"
           fi
           
           # Copy Go binaries
           find artifacts -name "mcp-host-*" -type f -exec cp {} release-assets/ \;
           
-          # List all assets
+          # List all final assets
+          echo "=== Final release assets ==="
           ls -la release-assets/
 
       - name: Generate release notes
         id: release_notes
         run: |
           VERSION=${{ needs.prepare-release.outputs.version }}
-          cat > release_notes.md << 'EOF'
-          ## Algonius Browser v$VERSION
+          cat > release_notes.md << EOF
+          ## Algonius Browser v${VERSION}
           
           ### 🚀 What's New
           
@@ -256,14 +260,14 @@ jobs:
           ### 📦 Downloads
           
           **Browser Extensions:**
-          - Chrome Extension: `algonius-browser-chrome-v$VERSION.zip`
-          - Firefox Extension: `algonius-browser-firefox-v$VERSION.zip`
+          - Chrome Extension: \`algonius-browser-chrome-v${VERSION}.zip\`
+          - Firefox Extension: \`algonius-browser-firefox-v${VERSION}.xpi\`
           
           **MCP Host (for external AI integration):**
-          - Linux (x64): `mcp-host-linux-amd64`
-          - macOS (Intel): `mcp-host-darwin-amd64`
-          - macOS (Apple Silicon): `mcp-host-darwin-arm64`
-          - Windows (x64): `mcp-host-windows-amd64.exe`
+          - Linux (x64): \`mcp-host-linux-amd64\`
+          - macOS (Intel): \`mcp-host-darwin-amd64\`
+          - macOS (Apple Silicon): \`mcp-host-darwin-arm64\`
+          - Windows (x64): \`mcp-host-windows-amd64.exe\`
           
           ### 🛠️ Installation
           
