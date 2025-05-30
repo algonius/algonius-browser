@@ -6,7 +6,7 @@ set -e
 BINARY_NAME="mcp-host"
 INSTALL_DIR="${HOME}/.nanobrowser/bin"
 MANIFEST_DIR="${HOME}/.config/google-chrome/NativeMessagingHosts"
-MANIFEST_NAME="dev.nanobrowser.mcp.host.json"
+MANIFEST_NAME="ai.algonius.mcp.host.json"
 
 # Colors
 GREEN='\033[0;32m'

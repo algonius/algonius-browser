@@ -45,7 +45,7 @@ if [ ! -f "${MANIFEST_SOURCE}" ]; then
   log "Creating manifest file..."
   cat > "${MANIFEST_SOURCE}" << EOF
 {
-  "name": "dev.nanobrowser.mcp.host",
+  "name": "ai.algonius.mcp.host",
   "description": "Nanobrowser MCP Native Messaging Host",
   "path": "${INSTALL_DIR}/${BINARY_NAME}",
   "type": "stdio",
