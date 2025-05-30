@@ -22,7 +22,7 @@ const (
 	Version = "0.1.0"
 
 	// Name of the MCP host
-	Name = "dev.nanobrowser.mcp.host"
+	Name = "ai.algonius.mcp.host"
 
 	// Default SSE port
 	DefaultSSEPort = ":9333"

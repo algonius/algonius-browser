@@ -5,7 +5,7 @@ BINARY_NAME=mcp-host
 BUILD_DIR=bin
 INSTALL_DIR=$(HOME)/.nanobrowser/bin
 MANIFEST_DIR=$(HOME)/.config/google-chrome/NativeMessagingHosts
-MANIFEST_NAME=dev.nanobrowser.mcp.host.json
+MANIFEST_NAME=ai.algonius.mcp.host.json
 MANIFEST_SOURCE=manifest/$(MANIFEST_NAME)
 
 # Go parameters
