@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/algonius/algonius-browser/mcp-host-go/pkg/logger"
@@ -74,6 +75,11 @@ func (t *SetValueTool) GetInputSchema() interface{} {
 			"value": map[string]interface{}{
 				"description": "Value to set (string, number, boolean, or array for multi-select)",
 			},
+			"timeout": map[string]interface{}{
+				"type":        "string",
+				"description": "Set value timeout: 'auto' for intelligent detection based on input length and page complexity, or timeout in milliseconds (e.g. '10000')",
+				"default":     "auto",
+			},
 			"options": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -118,6 +124,28 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 	valueArg, exists := args["value"]
 	if !exists {
 		return types.ToolResult{}, fmt.Errorf("value is required")
+	}
+
+	// Handle timeout parameter
+	timeoutStr := "auto" // default value
+	if timeoutArg, ok := args["timeout"].(string); ok {
+		timeoutStr = timeoutArg
+	}
+
+	// Parse timeout value with improved intelligence
+	var rpcTimeout int
+	if timeoutStr == "auto" {
+		rpcTimeout = t.calculateIntelligentTimeout(valueArg)
+	} else {
+		// Try to parse as number (milliseconds)
+		if parsedTimeout, err := strconv.Atoi(timeoutStr); err == nil {
+			if parsedTimeout < 5000 || parsedTimeout > 600000 {
+				return types.ToolResult{}, fmt.Errorf("timeout must be between 5000 and 600000 milliseconds")
+			}
+			rpcTimeout = parsedTimeout
+		} else {
+			return types.ToolResult{}, fmt.Errorf("timeout must be 'auto' or a timeout in milliseconds")
+		}
 	}
 
 	// Extract options with defaults
@@ -192,17 +220,42 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		"target_type": targetType,
 	}
 
+	// Calculate enhanced buffer time
+	bufferTime := int(float64(rpcTimeout) * 0.25) // 25% buffer
+	if bufferTime < 15000 {
+		bufferTime = 15000 // minimum 15 second buffer
+	}
+	if bufferTime > 60000 {
+		bufferTime = 60000 // maximum 60 second buffer
+	}
+
+	t.logger.Info("Starting set_value operation",
+		zap.Any("target", targetArg),
+		zap.Int("value_length", len(fmt.Sprintf("%v", valueArg))),
+		zap.Int("calculated_timeout", rpcTimeout),
+		zap.Int("buffer_time", bufferTime))
+
 	t.logger.Debug("Sending set_value RPC request",
 		zap.Any("target", targetArg),
 		zap.String("target_type", targetType),
 		zap.Any("value", valueArg),
 		zap.Any("options", options))
 
-	// Send RPC request to the extension
+	// Send RPC request to the extension with enhanced timeout
+	rpcStartTime := time.Now()
+	t.logger.Debug("Sending RPC request with enhanced timeout",
+		zap.Int("rpc_timeout", rpcTimeout),
+		zap.Int("total_timeout", rpcTimeout+bufferTime))
+
 	resp, err := t.messaging.RpcRequest(types.RpcRequest{
 		Method: "set_value",
 		Params: rpcParams,
-	}, types.RpcOptions{Timeout: 15000}) // 15 second timeout
+	}, types.RpcOptions{Timeout: rpcTimeout + bufferTime})
+
+	rpcDuration := time.Since(rpcStartTime)
+	t.logger.Info("RPC request completed",
+		zap.Duration("rpc_duration", rpcDuration),
+		zap.Bool("success", err == nil))
 
 	if err != nil {
 		executionTime := time.Since(startTime).Seconds()
@@ -343,4 +396,51 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 			},
 		},
 	}, nil
+}
+
+// calculateIntelligentTimeout calculates optimal timeout based on content length and type
+func (t *SetValueTool) calculateIntelligentTimeout(value interface{}) int {
+	textLength := len(fmt.Sprintf("%v", value))
+
+	// Enhanced base timeout time
+	baseTimeout := 15000 // 15 seconds base timeout
+
+	// Long text timeout calculation - more conservative estimation
+	if textLength <= 100 {
+		return baseTimeout
+	}
+
+	// For long text, use more conservative calculation
+	textFactor := ((textLength - 100) / 30) * 1000 // Beyond 100 chars, add 1 second per 30 characters
+	progressiveBonus := 0
+
+	// Long text needs progressive input, add extra time
+	if textLength > 500 {
+		progressiveBonus = 10000 // Extra 10 seconds
+	}
+	if textLength > 1000 {
+		progressiveBonus = 20000 // Extra 20 seconds
+	}
+	if textLength > 2000 {
+		progressiveBonus = 30000 // Extra 30 seconds
+	}
+
+	calculatedTimeout := baseTimeout + textFactor + progressiveBonus
+
+	// Ensure reasonable bounds (15 seconds - 10 minutes)
+	if calculatedTimeout < 15000 {
+		calculatedTimeout = 15000
+	}
+	if calculatedTimeout > 600000 {
+		calculatedTimeout = 600000
+	}
+
+	t.logger.Debug("Calculated intelligent timeout",
+		zap.Int("text_length", textLength),
+		zap.Int("base_timeout", baseTimeout),
+		zap.Int("text_factor", textFactor),
+		zap.Int("progressive_bonus", progressiveBonus),
+		zap.Int("final_timeout", calculatedTimeout))
+
+	return calculatedTimeout
 }

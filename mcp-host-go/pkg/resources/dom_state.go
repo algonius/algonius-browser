@@ -244,8 +244,13 @@ func (r *DomStateResource) convertToMarkdown(overview DomStateOverview) string {
 	} else {
 		builder.WriteString("## Interactive Elements (Overview)\n\n")
 
-		for i, element := range overview.OverviewElements {
-			builder.WriteString(fmt.Sprintf("### Element %d\n", i+1))
+		for _, element := range overview.OverviewElements {
+			// Get the highlightIndex from the element to maintain consistency with DOM Structure
+			highlightIndex := "?"
+			if indexValue, ok := element["index"]; ok {
+				highlightIndex = fmt.Sprintf("%v", indexValue)
+			}
+			builder.WriteString(fmt.Sprintf("### Element [%s]\n", highlightIndex))
 
 			// Element properties in a structured format
 			for key, value := range element {

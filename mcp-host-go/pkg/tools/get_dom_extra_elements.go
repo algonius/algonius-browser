@@ -406,8 +406,8 @@ func (t *GetDomExtraElementsTool) generateMarkdown(result ExtraElementsResult) s
 			text := t.getElementText(element)
 			attributes := t.getElementAttributes(element)
 
-			// Element header with index and type
-			elementTitle := fmt.Sprintf("### [%d] %s", index, t.formatElementTitle(tagName, text))
+			// Element header with index (consistent with dom_state.go format)
+			elementTitle := fmt.Sprintf("### Element [%d]", index)
 			content.WriteString(elementTitle + "\n")
 
 			// Element details on one line

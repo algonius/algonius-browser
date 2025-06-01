@@ -675,7 +675,7 @@ window.buildDomTree = (
     const interactiveRoles = new Set([
       'button', // Directly clickable element
       // 'link',            // Clickable link
-      // 'menuitem',        // Clickable menu item
+      'menuitem', // Clickable menu item
       'menuitemradio', // Radio-style menu item (selectable)
       'menuitemcheckbox', // Checkbox-style menu item (toggleable)
       'radio', // Radio button (selectable)
