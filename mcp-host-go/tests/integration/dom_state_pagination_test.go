@@ -205,7 +205,7 @@ func TestDomStateElementFiltering(t *testing.T) {
 	assert.Contains(t, textContent.Text, "Interactive Elements Summary")
 
 	// Verify that we have elements in the overview
-	assert.Contains(t, textContent.Text, "Element 1")
+	assert.Contains(t, textContent.Text, "Element [1]")
 
 	t.Log("Successfully retrieved DOM state with mixed element types")
 
