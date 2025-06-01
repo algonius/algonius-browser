@@ -227,7 +227,7 @@ func TestSetValueToolTimeoutValidation(t *testing.T) {
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
 			"target":  0,
 			"value":   "test",
-			"timeout": "1000", // Too low - should be rejected
+			"timeout": "3000", // Too low - should be rejected (below new minimum of 5000)
 		})
 		require.NoError(t, err)
 		assert.True(t, result.IsError)
@@ -240,7 +240,7 @@ func TestSetValueToolTimeoutValidation(t *testing.T) {
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
 			"target":  0,
 			"value":   "test",
-			"timeout": "400000", // Too high - should be rejected
+			"timeout": "700000", // Too high - should be rejected (above new maximum of 600000)
 		})
 		require.NoError(t, err)
 		assert.True(t, result.IsError)
@@ -259,6 +259,23 @@ func TestSetValueToolTimeoutValidation(t *testing.T) {
 		assert.True(t, result.IsError)
 		// Note: Error details would be in result.Content if available, but we mainly check IsError
 		t.Log("Correctly caught invalid timeout format validation error")
+	})
+
+	// Test valid timeout range
+	t.Run("valid timeout range", func(t *testing.T) {
+		testCases := []string{"5000", "15000", "30000", "60000", "300000", "600000"}
+
+		for _, timeout := range testCases {
+			result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
+				"target":  0,
+				"value":   "test",
+				"timeout": timeout,
+			})
+			require.NoError(t, err)
+			assert.False(t, result.IsError, "Timeout %s should be valid", timeout)
+		}
+
+		t.Log("All valid timeout values accepted")
 	})
 }
 

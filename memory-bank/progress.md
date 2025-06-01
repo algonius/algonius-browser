@@ -13,9 +13,10 @@
 2. **get_browser_state**: Get current browser state and tabs
 3. **get_dom_state**: Extract DOM elements and structure
 4. **click_element**: Click DOM elements by selector/text
-5. **set_value**: Set input field values
+5. **set_value**: **ENHANCED** - Set input field values with intelligent timeout (5s-10min range) and progressive typing for long text
 6. **scroll_page**: Scroll pages up/down
 7. **manage_tabs**: Create, close, switch tabs
+8. **get_dom_extra_elements**: Advanced DOM element pagination and filtering
 
 ### Project Architecture
 - **Modular Design**: Clean separation between MCP host, extension, and tools
@@ -32,10 +33,17 @@
 - **Rewrote Documentation**: Completely updated README.md to focus on MCP browser automation
 
 ## Current State
-- **System Status**: Fully functional MCP browser automation
+- **System Status**: Fully functional MCP browser automation with enhanced set_value capabilities
 - **Build Status**: All builds passing ✅
-- **Test Status**: All integration tests passing ✅
+- **Test Status**: All 41 integration tests passing ✅ (including new timeout tests)
 - **Ready for**: Production use as MCP server for browser automation
+
+### June 2025 Enhancement ✅
+- **set_value Tool Enhancement**: Added comprehensive timeout support with 'auto' mode and explicit millisecond values
+- **Progressive Typing**: Intelligent text input strategy for handling long content efficiently
+- **Timeout Range**: Extended from 2s-300s to 5s-600s (5s-10min) for better reliability
+- **Comprehensive Testing**: Added dedicated timeout and progressive typing test suite
+- **Validation**: Enhanced parameter validation with proper error handling for timeout edge cases
 
 ## Next Development Areas
 - Performance optimizations for large DOM trees

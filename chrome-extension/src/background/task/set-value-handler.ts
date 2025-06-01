@@ -228,47 +228,64 @@ export class SetValueHandler {
   };
 
   /**
-   * Calculate intelligent operation timeout based on input parameters
+   * Calculate optimized operation timeout based on input parameters
    */
   private calculateOperationTimeout(timeout: string | number, value: any, elementType: string, page: any): number {
     // Handle explicit timeout values
     if (timeout !== 'auto') {
       const numericTimeout = typeof timeout === 'number' ? timeout : parseInt(timeout as string);
       if (!isNaN(numericTimeout)) {
-        return Math.min(Math.max(numericTimeout, 2000), 290000); // 2s - 290s range
+        return Math.min(Math.max(numericTimeout, 5000), 590000); // 5s - 590s range (leave 10s for buffer)
       }
     }
 
-    // Auto mode: intelligent timeout calculation
-    const baseTimeout = 8000; // 8 seconds base timeout
+    // Auto mode: optimized intelligent timeout calculation
+    const baseTimeout = 12000; // Enhanced base timeout to 12 seconds
 
-    // Calculate page complexity factor
+    // Calculate text length impact
+    const textLength = String(value).length;
+    let lengthFactor = 0;
+
+    if (textLength <= 100) {
+      lengthFactor = 0; // Short text doesn't add time
+    } else if (textLength <= 500) {
+      lengthFactor = Math.ceil((textLength - 100) / 40) * 1000; // Every 40 chars adds 1 second
+    } else if (textLength <= 1000) {
+      lengthFactor = 10000 + Math.ceil((textLength - 500) / 30) * 1000; // 10s + every 30 chars adds 1s
+    } else {
+      lengthFactor = 26000 + Math.ceil((textLength - 1000) / 25) * 1000; // 26s + every 25 chars adds 1s
+    }
+
+    // Page complexity calculation - more precise assessment
     const selectorMap = page.getSelectorMap();
     const elementCount = selectorMap.size;
-    const pageComplexity = Math.min(1 + elementCount / 100, 2.0); // 1.0 - 2.0 range
+    let pageComplexity = 1.0;
 
-    // Calculate text length factor for long text support
-    const textLength = String(value).length;
-    const lengthFactor = Math.ceil(textLength / 50) * 1000; // 1 second per 50 characters
+    if (elementCount > 30) pageComplexity = 1.2;
+    if (elementCount > 60) pageComplexity = 1.4;
+    if (elementCount > 100) pageComplexity = 1.6;
+    if (elementCount > 150) pageComplexity = 1.8;
 
-    // Element type multipliers
+    // Element type impact factors - more conservative settings
     const typeFactors: Record<string, number> = {
-      contenteditable: 1.8, // Rich text editors need more time
-      textarea: 1.3, // Multi-line text areas
+      contenteditable: 2.2, // GitHub Issue editors and other rich text
+      textarea: 1.5, // Multi-line text areas
       'text-input': 1.0, // Regular input fields
-      select: 0.7, // Dropdowns are faster
-      'multi-select': 0.9, // Multi-select slightly slower
-      checkbox: 0.4, // Very fast
-      radio: 0.4, // Very fast
+      select: 0.8, // Dropdowns
+      'multi-select': 1.0,
+      checkbox: 0.5,
+      radio: 0.5,
     };
 
     const typeFactor = typeFactors[elementType] || 1.0;
+
+    // Final calculation
     const calculatedTimeout = (baseTimeout + lengthFactor) * typeFactor * pageComplexity;
 
-    // Ensure reasonable bounds with long text support (5s - 290s)
-    const finalTimeout = Math.min(Math.max(calculatedTimeout, 5000), 290000);
+    // Ensure reasonable bounds (12s - 590s)
+    const finalTimeout = Math.min(Math.max(calculatedTimeout, 12000), 590000);
 
-    this.logger.debug('Auto timeout calculation:', {
+    this.logger.debug('Optimized timeout calculation:', {
       textLength,
       elementType,
       pageComplexity,
@@ -582,33 +599,68 @@ export class SetValueHandler {
   }
 
   /**
-   * Handle long text input with progressive typing strategy
+   * Handle long text input with optimized progressive typing strategy
    */
   private async handleLongTextInput(elementHandle: any, value: string): Promise<void> {
-    const CHUNK_SIZE = 100; // Characters per chunk
-    const CHUNK_DELAY = 200; // Delay between chunks (ms)
+    // Optimized parameters for better reliability
+    const CHUNK_SIZE = 80; // Reduced from 100 to 80 for better stability
+    const CHUNK_DELAY = 250; // Increased from 200 to 250ms for better processing
+    const INPUT_EVENT_INTERVAL = 3; // Trigger input event every 3 chunks
 
-    this.logger.debug(`Long text detected (${value.length} chars), using progressive input`);
+    this.logger.debug(
+      `Optimized long text input (${value.length} chars) with ${Math.ceil(value.length / CHUNK_SIZE)} chunks`,
+    );
 
-    // Process text in chunks
+    // Process text in chunks with optimized timing
     for (let i = 0; i < value.length; i += CHUNK_SIZE) {
       const chunk = value.substring(i, Math.min(i + CHUNK_SIZE, value.length));
+      const chunkIndex = Math.floor(i / CHUNK_SIZE);
 
-      // Type chunk with faster individual character delay
-      await elementHandle.type(chunk, { delay: 30 });
+      try {
+        // Type chunk with optimized character delay
+        await elementHandle.type(chunk, { delay: 35 }); // Increased from 30 to 35ms
 
-      // Brief pause between chunks to let page process
-      if (i + CHUNK_SIZE < value.length) {
-        await new Promise(resolve => setTimeout(resolve, CHUNK_DELAY));
+        // Periodically trigger input event to maintain page responsiveness
+        if (chunkIndex % INPUT_EVENT_INTERVAL === 0) {
+          await elementHandle.evaluate((el: HTMLElement) => {
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+          });
+        }
 
-        // Optional: trigger input event periodically for real-time processing
-        await elementHandle.evaluate((el: HTMLElement) => {
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-        });
+        // Adaptive delay between chunks based on chunk size and position
+        if (i + CHUNK_SIZE < value.length) {
+          let adaptiveDelay = CHUNK_DELAY;
+
+          // Later chunks need more time for page processing
+          if (i > value.length * 0.5) {
+            adaptiveDelay = Math.min(CHUNK_DELAY * 1.2, 400);
+          }
+
+          await new Promise(resolve => setTimeout(resolve, adaptiveDelay));
+        }
+
+        this.logger.debug(`Processed chunk ${chunkIndex + 1}/${Math.ceil(value.length / CHUNK_SIZE)}`);
+      } catch (chunkError) {
+        this.logger.warning(`Error in chunk ${chunkIndex}, retrying once...`, chunkError);
+
+        // Single retry for current chunk
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms
+          await elementHandle.type(chunk, { delay: 50 }); // Slower retry
+        } catch (retryError) {
+          this.logger.error(`Failed to process chunk ${chunkIndex} after retry`, retryError);
+          throw retryError;
+        }
       }
     }
 
-    this.logger.debug('Progressive text input completed');
+    // Final event dispatch to ensure all events are triggered
+    await elementHandle.evaluate((el: HTMLElement) => {
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    this.logger.debug('Optimized progressive text input completed');
   }
 
   /**
