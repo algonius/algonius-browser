@@ -9,6 +9,7 @@ import type BrowserContext from '../browser/context';
 import { createLogger } from '../log';
 import type { RpcHandler, RpcRequest, RpcResponse } from '../mcp/host-manager';
 import type { DOMElementNode } from '../dom/views';
+import { findElementByHighlightIndex } from './dom-utils';
 
 /**
  * Interface for input strategy determination
@@ -331,12 +332,12 @@ export class SetValueHandler {
     // Handle numeric index targeting
     if (targetType === 'index' || typeof target === 'number') {
       const elementIndex = typeof target === 'number' ? target : parseInt(target as string);
-      const elementNode = page.getDomElementByIndex(elementIndex);
+      const elementNode = await findElementByHighlightIndex(page, elementIndex);
 
       if (!elementNode) {
         return {
           success: false,
-          error: `Element with index ${elementIndex} not found in DOM state`,
+          error: `Element with highlightIndex ${elementIndex} not found in DOM state`,
         };
       }
 
