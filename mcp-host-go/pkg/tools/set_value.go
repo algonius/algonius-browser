@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/algonius/algonius-browser/mcp-host-go/pkg/logger"
@@ -74,6 +75,11 @@ func (t *SetValueTool) GetInputSchema() interface{} {
 			"value": map[string]interface{}{
 				"description": "Value to set (string, number, boolean, or array for multi-select)",
 			},
+			"timeout": map[string]interface{}{
+				"type":        "string",
+				"description": "Set value timeout: 'auto' for intelligent detection based on input length and page complexity, or timeout in milliseconds (e.g. '10000')",
+				"default":     "auto",
+			},
 			"options": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -118,6 +124,28 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 	valueArg, exists := args["value"]
 	if !exists {
 		return types.ToolResult{}, fmt.Errorf("value is required")
+	}
+
+	// Handle timeout parameter
+	timeoutStr := "auto" // default value
+	if timeoutArg, ok := args["timeout"].(string); ok {
+		timeoutStr = timeoutArg
+	}
+
+	// Parse timeout value
+	var rpcTimeout int
+	if timeoutStr == "auto" {
+		rpcTimeout = 300000 // auto mode uses 300 seconds (5 minutes) for long text support
+	} else {
+		// Try to parse as number (milliseconds)
+		if parsedTimeout, err := strconv.Atoi(timeoutStr); err == nil {
+			if parsedTimeout < 2000 || parsedTimeout > 300000 {
+				return types.ToolResult{}, fmt.Errorf("timeout must be between 2000 and 300000 milliseconds")
+			}
+			rpcTimeout = parsedTimeout
+		} else {
+			return types.ToolResult{}, fmt.Errorf("timeout must be 'auto' or a timeout in milliseconds")
+		}
 	}
 
 	// Extract options with defaults
@@ -198,11 +226,11 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		zap.Any("value", valueArg),
 		zap.Any("options", options))
 
-	// Send RPC request to the extension
+	// Send RPC request to the extension with dynamic timeout
 	resp, err := t.messaging.RpcRequest(types.RpcRequest{
 		Method: "set_value",
 		Params: rpcParams,
-	}, types.RpcOptions{Timeout: 15000}) // 15 second timeout
+	}, types.RpcOptions{Timeout: rpcTimeout + 10000}) // Add 10 second buffer
 
 	if err != nil {
 		executionTime := time.Since(startTime).Seconds()

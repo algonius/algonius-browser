@@ -45,7 +45,7 @@ export class SetValueHandler {
     this.logger.debug('Received set_value request:', request);
 
     try {
-      const { target, value, options = {}, target_type } = request.params || {};
+      const { target, value, options = {}, target_type, timeout = 'auto' } = request.params || {};
 
       // Validate required parameters
       if (target === undefined || target === null) {
@@ -121,6 +121,9 @@ export class SetValueHandler {
 
       // Determine input strategy
       const strategy = this.determineInputStrategy(elementNode!, value);
+
+      // Calculate intelligent timeout for the operation
+      const operationTimeout = this.calculateOperationTimeout(timeout, value, strategy.elementType, currentPage);
       if (!strategy.canHandle) {
         const supportedTypes = ['input', 'select', 'textarea', 'contenteditable'];
         const suggestedActions = [
@@ -223,6 +226,62 @@ export class SetValueHandler {
       };
     }
   };
+
+  /**
+   * Calculate intelligent operation timeout based on input parameters
+   */
+  private calculateOperationTimeout(timeout: string | number, value: any, elementType: string, page: any): number {
+    // Handle explicit timeout values
+    if (timeout !== 'auto') {
+      const numericTimeout = typeof timeout === 'number' ? timeout : parseInt(timeout as string);
+      if (!isNaN(numericTimeout)) {
+        return Math.min(Math.max(numericTimeout, 2000), 290000); // 2s - 290s range
+      }
+    }
+
+    // Auto mode: intelligent timeout calculation
+    const baseTimeout = 8000; // 8 seconds base timeout
+
+    // Calculate page complexity factor
+    const selectorMap = page.getSelectorMap();
+    const elementCount = selectorMap.size;
+    const pageComplexity = Math.min(1 + elementCount / 100, 2.0); // 1.0 - 2.0 range
+
+    // Calculate text length factor for long text support
+    const textLength = String(value).length;
+    const lengthFactor = Math.ceil(textLength / 50) * 1000; // 1 second per 50 characters
+
+    // Element type multipliers
+    const typeFactors: Record<string, number> = {
+      contenteditable: 1.8, // Rich text editors need more time
+      textarea: 1.3, // Multi-line text areas
+      'text-input': 1.0, // Regular input fields
+      select: 0.7, // Dropdowns are faster
+      'multi-select': 0.9, // Multi-select slightly slower
+      checkbox: 0.4, // Very fast
+      radio: 0.4, // Very fast
+    };
+
+    const typeFactor = typeFactors[elementType] || 1.0;
+    const calculatedTimeout = (baseTimeout + lengthFactor) * typeFactor * pageComplexity;
+
+    // Ensure reasonable bounds with long text support (5s - 290s)
+    const finalTimeout = Math.min(Math.max(calculatedTimeout, 5000), 290000);
+
+    this.logger.debug('Auto timeout calculation:', {
+      textLength,
+      elementType,
+      pageComplexity,
+      elementCount,
+      baseTimeout,
+      lengthFactor,
+      typeFactor,
+      calculatedTimeout,
+      finalTimeout,
+    });
+
+    return finalTimeout;
+  }
 
   /**
    * Get optimal wait time based on element type
@@ -469,7 +528,7 @@ export class SetValueHandler {
   }
 
   /**
-   * Handle text input (input, textarea, contenteditable) with success verification
+   * Handle text input (input, textarea, contenteditable) with progressive typing for long text
    */
   private async handleTextInput(elementHandle: any, value: any, options: any): Promise<{ actualValue: string }> {
     const stringValue = String(value);
@@ -486,8 +545,13 @@ export class SetValueHandler {
       });
     }
 
-    // Type the new value
-    await elementHandle.type(stringValue, { delay: 50 });
+    // Use progressive typing for long text (> 100 characters)
+    if (stringValue.length > 100) {
+      await this.handleLongTextInput(elementHandle, stringValue);
+    } else {
+      // Standard typing for short text
+      await elementHandle.type(stringValue, { delay: 50 });
+    }
 
     // Trigger change event
     await elementHandle.evaluate((el: HTMLElement) => {
@@ -515,6 +579,36 @@ export class SetValueHandler {
     }
 
     return { actualValue: stringValue };
+  }
+
+  /**
+   * Handle long text input with progressive typing strategy
+   */
+  private async handleLongTextInput(elementHandle: any, value: string): Promise<void> {
+    const CHUNK_SIZE = 100; // Characters per chunk
+    const CHUNK_DELAY = 200; // Delay between chunks (ms)
+
+    this.logger.debug(`Long text detected (${value.length} chars), using progressive input`);
+
+    // Process text in chunks
+    for (let i = 0; i < value.length; i += CHUNK_SIZE) {
+      const chunk = value.substring(i, Math.min(i + CHUNK_SIZE, value.length));
+
+      // Type chunk with faster individual character delay
+      await elementHandle.type(chunk, { delay: 30 });
+
+      // Brief pause between chunks to let page process
+      if (i + CHUNK_SIZE < value.length) {
+        await new Promise(resolve => setTimeout(resolve, CHUNK_DELAY));
+
+        // Optional: trigger input event periodically for real-time processing
+        await elementHandle.evaluate((el: HTMLElement) => {
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      }
+    }
+
+    this.logger.debug('Progressive text input completed');
   }
 
   /**
