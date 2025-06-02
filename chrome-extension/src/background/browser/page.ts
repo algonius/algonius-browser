@@ -160,6 +160,7 @@ export default class Page {
       await this._browser.disconnect();
       this._browser = null;
       this._puppeteerPage = null;
+
       // reset the state
       this._state = build_initial_state(this._tabId);
     }
@@ -741,7 +742,185 @@ export default class Page {
 
   async locateElement(element: DOMElementNode): Promise<ElementHandle | null> {
     if (!this._puppeteerPage) {
-      // throw new Error('Puppeteer page is not connected');
+      logger.warning('Puppeteer is not connected');
+      return null;
+    }
+
+    // Use XPath-based locating strategy
+    return this._locateElementByXPath(element);
+  }
+
+  /**
+   * Locate element using XPath with iframe support
+   */
+  private async _locateElementByXPath(element: DOMElementNode): Promise<ElementHandle | null> {
+    if (!this._puppeteerPage) {
+      logger.warning('Puppeteer is not connected');
+      return null;
+    }
+
+    if (!element.xpath) {
+      logger.debug('Element has no XPath, falling back to basic attributes');
+      return this._locateByBasicAttributes(element);
+    }
+
+    let currentFrame: PuppeteerPage | Frame = this._puppeteerPage;
+
+    // Start with the target element and collect all parents
+    const parents: DOMElementNode[] = [];
+    let current = element;
+    while (current.parent) {
+      parents.push(current.parent);
+      current = current.parent;
+    }
+
+    // Process all iframe parents in sequence (in reverse order - top to bottom)
+    const iframes = parents.reverse().filter(item => item.tagName === 'iframe');
+    for (const parent of iframes) {
+      if (!parent.xpath) {
+        logger.warning('Iframe parent has no XPath, cannot navigate to frame');
+        return null;
+      }
+
+      try {
+        // Use XPath to find iframe
+        const frameElementHandle = await this._locateByXPathInFrame(currentFrame, parent.xpath);
+        if (!frameElementHandle) {
+          logger.warning(`Could not find iframe with XPath: ${parent.xpath}`);
+          return null;
+        }
+
+        const frame: Frame | null = await frameElementHandle.contentFrame();
+        if (!frame) {
+          logger.warning(`Could not access frame content for XPath: ${parent.xpath}`);
+          return null;
+        }
+        currentFrame = frame;
+      } catch (error) {
+        logger.error('Error navigating to iframe:', error);
+        return null;
+      }
+    }
+
+    // Now locate the target element in the final frame
+    try {
+      const elementHandle = await this._locateByXPathInFrame(currentFrame, element.xpath);
+      if (elementHandle) {
+        // Scroll element into view if needed
+        const isHidden = await elementHandle.isHidden();
+        if (!isHidden) {
+          await this._scrollIntoViewIfNeeded(elementHandle);
+        }
+        logger.debug('Element located using XPath:', element.xpath);
+        return elementHandle;
+      }
+    } catch (error) {
+      logger.error('Failed to locate element by XPath:', error);
+    }
+
+    // Fallback to basic attributes if XPath fails
+    logger.debug('XPath location failed, falling back to basic attributes');
+    return this._locateByBasicAttributes(element);
+  }
+
+  /**
+   * Locate element by XPath in a specific frame using native browser XPath API
+   */
+  private async _locateByXPathInFrame(frame: PuppeteerPage | Frame, xpath: string): Promise<ElementHandle | null> {
+    try {
+      // For Page, use $x method; for Frame, use evaluateHandle
+      if ('$x' in frame && typeof (frame as any).$x === 'function') {
+        // This is a PuppeteerPage
+        const elements = (await (frame as any).$x(xpath)) as ElementHandle[];
+        if (elements && elements.length > 0) {
+          const element = elements[0];
+          if (element) {
+            logger.debug('Element found using XPath on Page:', xpath);
+            return element;
+          }
+        }
+      } else {
+        // This is a Frame, use evaluateHandle with native XPath API
+        const elementHandle = await frame.evaluateHandle(xpath => {
+          const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+          const node = result.singleNodeValue;
+          return node && node.nodeType === Node.ELEMENT_NODE ? (node as Element) : null;
+        }, xpath);
+
+        if (elementHandle && elementHandle.asElement) {
+          const element = elementHandle.asElement();
+          if (element) {
+            logger.debug('Element found using XPath on Frame:', xpath);
+            return element as ElementHandle<Element>;
+          }
+        }
+      }
+    } catch (error) {
+      logger.debug('XPath evaluation failed:', error);
+    }
+
+    return null;
+  }
+
+  /**
+   * Fallback method: locate element using basic stable attributes
+   */
+  private async _locateByBasicAttributes(element: DOMElementNode): Promise<ElementHandle | null> {
+    if (!this._puppeteerPage) {
+      return null;
+    }
+
+    const selectors: string[] = [];
+
+    // Only use the most stable attributes
+    if (element.attributes.id) {
+      selectors.push(`#${element.attributes.id}`);
+    }
+    if (element.attributes['data-testid']) {
+      selectors.push(`[data-testid="${element.attributes['data-testid']}"]`);
+    }
+    if (element.attributes.name) {
+      selectors.push(`[name="${element.attributes.name}"]`);
+    }
+    if (element.tagName && element.attributes.type) {
+      selectors.push(`${element.tagName}[type="${element.attributes.type}"]`);
+    }
+
+    for (const selector of selectors) {
+      try {
+        const elementHandle = await this._puppeteerPage.$(selector);
+        if (elementHandle) {
+          // Validate this is the right element by checking attributes
+          const isMatch = await elementHandle.evaluate((el, expectedAttrs) => {
+            // Simple validation: check if key attributes match
+            for (const [key, value] of Object.entries(expectedAttrs)) {
+              if (key === 'id' || key === 'name' || key === 'data-testid') {
+                const actualValue = el.getAttribute(key);
+                if (actualValue !== value) {
+                  return false;
+                }
+              }
+            }
+            return true;
+          }, element.attributes);
+
+          if (isMatch) {
+            logger.debug('Element located using basic attributes:', selector);
+            return elementHandle;
+          }
+        }
+      } catch (error) {
+        logger.debug('Basic attribute selector failed:', selector, error);
+        // Continue to try next selector
+      }
+    }
+
+    logger.warning('Failed to locate element using all strategies');
+    return null;
+  }
+
+  private async _locateElementOriginal(element: DOMElementNode): Promise<ElementHandle | null> {
+    if (!this._puppeteerPage) {
       logger.warning('Puppeteer is not connected');
       return null;
     }
@@ -761,13 +940,11 @@ export default class Page {
       const cssSelector = parent.enhancedCssSelectorForElement(this._config.includeDynamicAttributes);
       const frameElement: ElementHandle | null = await currentFrame.$(cssSelector);
       if (!frameElement) {
-        // throw new Error(`Could not find iframe with selector: ${cssSelector}`);
         logger.warning(`Could not find iframe with selector: ${cssSelector}`);
         return null;
       }
       const frame: Frame | null = await frameElement.contentFrame();
       if (!frame) {
-        // throw new Error(`Could not access frame content for selector: ${cssSelector}`);
         logger.warning(`Could not access frame content for selector: ${cssSelector}`);
         return null;
       }

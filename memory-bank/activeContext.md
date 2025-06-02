@@ -1,160 +1,83 @@
 # Active Context
 
-## Current Focus: DOM Element Index Fix - COMPLETED ✅
+## Current Focus
+**Issue #6 Resolution: Element Click Bug Fix**
 
-### Issue Summary
-The click_element tool failed with "Element with index X could not be located" due to index mapping mismatch between Go backend and TypeScript frontend.
+### Problem Summary
+The Algonius Browser project had a critical element clicking bug where:
+- `findElementByHighlightIndex` successfully locates DOM elements
+- But `page.locateElement` often returns `null`
+- This caused click operations to fail frequently
+- The issue was specifically observed when clicking the "Save" button (element 25) in test scenarios
 
-### ROOT CAUSE ANALYSIS ✅
+### Root Cause Analysis
+The problem was in the `EnhancedElementLocator` class's `locateBySimpleCssSelector` method:
 
-**Problem**: Index field mismatch between backend and frontend
+1. **Over-broad CSS selectors**: The simple selector strategy was generating selectors that could match multiple elements
+2. **Insufficient element verification**: When multiple elements matched a selector, the code wasn't properly verifying which one was the intended target
+3. **Missing attribute verification**: No validation that found elements actually matched the expected attributes
 
-1. **Go backend** generates DOM state with `highlightIndex` field (0-based indexing from DOM tree)
-2. **TypeScript handlers** used `getDomElementByIndex()` which expects sequential indices
-3. **Index mismatch** caused element targeting to fail across all interactive tools
-4. **No shared utility** for consistent element lookup across handlers
+### Solution Implemented
+**Enhanced Element Verification System**:
 
-### SOLUTION IMPLEMENTED ✅
+1. **Fixed TypeScript errors** in the `EnhancedElementLocator` class
+2. **Added strict element verification** with `verifyElementAttributes` method
+3. **Improved selector specificity** by limiting simple selectors to unique identifiers only
+4. **Added proper attribute matching** to ensure the correct element is selected
 
-**Fix**: Created shared utility for consistent element targeting
+### Key Changes Made
+- **Enhanced element attribute verification**: New `verifyElementAttributes` method validates tag name and key attributes
+- **Stricter selector generation**: Simple selectors now only use highly unique attributes (id, data-testid, name for form elements)
+- **Fixed all TypeScript compilation errors**: Resolved issues with `NamedNodeMap` iteration and method signatures
+- **Improved debugging**: Enhanced logging for better troubleshooting
 
-1. **Created** `findElementByHighlightIndex()` utility in `dom-utils.ts`
-2. **Updated** `click-element-handler.ts` to use shared utility instead of `getDomElementByIndex()`
-3. **Updated** `set-value-handler.ts` to use shared utility for index targeting
-4. **Updated** `scroll-page-handler.ts` to use shared utility for element scrolling
-5. **Fixed** element info extraction to use `attributes` property correctly
-6. **Verified** build success for both Chrome extension and Go MCP host
+### Technical Details
+The fix involved modifying `chrome-extension/src/background/browser/enhanced-element-locator.ts`:
 
-### Technical Implementation
-- **Shared Utility**: `findElementByHighlightIndex(page, highlightIndex)` iterates through selectorMap to find matching element
-- **Consistent Targeting**: All handlers now use same element lookup mechanism
-- **Proper Attributes**: Fixed element info extraction to use `elementNode.attributes.*` instead of direct properties
-- **Error Messages**: Updated error messages to reference `highlightIndex` for clarity
+1. **Element Selection Strategy**: Now prioritizes unique identifiers and validates matches
+2. **Multi-Strategy Approach**: Falls back through multiple location strategies if one fails
+3. **Attribute Verification**: Cross-checks found elements against expected attributes
+4. **Proper Error Handling**: Graceful fallbacks when location strategies fail
 
-## Recent Major Achievements (June 2025)
+### Current Status
+- ✅ All TypeScript compilation errors resolved
+- ✅ **MAJOR REFACTOR COMPLETED**: Removed Enhanced Element Locator entirely from page.ts
+- ✅ **NEW IMPLEMENTATION**: XPath-based element location with iframe support
+- ✅ **SIMPLIFIED ARCHITECTURE**: Direct XPath + basic attribute fallback strategy
+- ✅ **FULL TESTING PASSED**: All 6 click element test suites passing
+- ✅ **BUILD VERIFICATION**: Chrome extension and MCP host compile successfully
 
-### Latest: Real-World Validation (June 2, 2025)
-- **Task**: Successfully translated GitHub issue #4 from English to Chinese using algonius-browser MCP tools
-- **Validation**: Confirmed set_value tool works perfectly for large text content (1000+ characters)
-- **Process**: Navigate → Click Edit → Set Value → Save - all operations successful
-- **Result**: Issue content fully translated and saved to GitHub
+### Refactoring Results (2025-06-02)
+✅ **Enhanced Element Locator Removal**: Successfully removed complex Enhanced Element Locator from page.ts
+✅ **XPath Implementation**: Native browser XPath API with Puppeteer `$x` for Pages
+✅ **Frame Support**: Custom `evaluateHandle` with XPath for iframe navigation
+✅ **Fallback Strategy**: Basic attribute-based location for maximum compatibility
+✅ **Type Safety**: All TypeScript errors resolved with proper type casting
+✅ **Integration Tests**: All click element tests passing (6/6 suites)
 
-### Enhanced set_value Tool Implementation
-- **Timeout Support**: Added timeout parameter support with 'auto' and explicit millisecond values
-- **Progressive Typing**: Implemented intelligent text input strategy for long content
-- **Comprehensive Testing**: Added full test coverage for timeout and progressive typing scenarios
-- **Validation**: Enhanced parameter validation with proper error handling
-- **Integration**: Seamless integration with existing Chrome extension handlers
+### Current Architecture (Post-Refactor)
+The system now uses a simplified but robust cascade of location strategies:
+1. **XPath Location** (primary strategy using native browser XPath API)
+   - For Pages: Uses Puppeteer's `$x` method
+   - For Frames: Uses `evaluateHandle` with `document.evaluate`
+   - Supports iframe navigation through parent traversal
+2. **Basic Attribute Fallback** (secondary strategy for maximum compatibility)
+   - Only uses stable attributes: `id`, `data-testid`, `name`, `type`
+   - Includes element validation against expected attributes
+   - Simple CSS selectors for reliable matching
 
-## System Architecture (Post-Refactoring)
-```
-algonius-browser/
-├── mcp-host-go/           # Native messaging host (Go)
-├── chrome-extension/      # Background service worker + utils
-├── pages/
-│   ├── popup/            # MCP host control interface
-│   └── content/          # DOM interaction scripts
-└── packages/             # Shared utilities and configs
-```
+**Key Improvements**:
+- ✅ Removed complex Enhanced Element Locator dependency
+- ✅ Simplified codebase with fewer potential failure points
+- ✅ Direct browser XPath API usage for better reliability
+- ✅ Maintained iframe support through frame navigation
+- ✅ Enhanced error handling and debugging
 
-## Core Components
+## Project Context
+This fix addresses a fundamental reliability issue in the browser automation system. The enhanced element locator should significantly improve the success rate of element interactions, making the system more reliable for AI agents and automated tasks.
 
-### MCP Host (Go)
-- **Purpose**: Native messaging bridge between Chrome and MCP protocol
-- **Location**: `mcp-host-go/`
-- **Status**: Fully functional, all tests passing, real-world validated
-- **Key Features**: Tool routing, error handling, lifecycle management
-
-### Chrome Extension
-- **Background Script**: Clean service worker with MCP tool handlers
-- **Popup Interface**: Simple control panel for MCP host start/stop
-- **Content Scripts**: DOM tree building and interaction utilities
-- **Status**: Streamlined, LLM-free, focused on browser automation, production-ready
-
-### Available MCP Tools (Status Update)
-1. `navigate_to` - URL navigation with timeout ✅
-2. `get_browser_state` - Current browser/tab state ✅
-3. `get_dom_state` - DOM structure extraction ✅
-4. `click_element` - Element clicking by selector/text ⚠️ **CACHE CONSISTENCY ISSUE IDENTIFIED**
-5. `set_value` - **Enhanced & Validated** Input field value setting with timeout and progressive typing ✅
-6. `scroll_page` - Page scrolling ✅
-7. `manage_tabs` - Tab creation/switching/closing ✅
-8. `get_dom_extra_elements` - Advanced DOM element pagination and filtering ✅
-
-## Development Patterns
-
-### Error Handling
-- Structured error types with codes and messages
-- Graceful degradation for missing elements
-- Timeout handling for async operations
-- Real-world error scenarios tested and handled
-
-### Testing Strategy
-- Integration tests for all MCP tools
-- Chrome extension lifecycle testing
-- DOM interaction validation
-- Real-world usage validation on GitHub
-
-### Code Organization
-- TypeScript throughout for type safety
-- Modular handler pattern for MCP tools
-- Clean separation of concerns
-
-## Project Status
-- **Build**: ✅ All packages build successfully
-- **Tests**: ✅ Most integration tests passing
-- **Functionality**: ⚠️ click_element cache consistency issue identified and analyzed
-- **Architecture**: ✅ Clean, focused, maintainable
-- **set_value Enhancement**: ✅ Timeout support and progressive typing fully implemented
-- **Real-World Validation**: ✅ Successfully used for GitHub issue translation task
-
-## Implementation Details - set_value Enhancement
-
-### Timeout Support (Validated)
-- **Auto timeout**: Intelligent calculation based on text length (base 5s + 50ms per character)
-- **Explicit timeout**: 2000ms to 300000ms (2s to 5m) range validation
-- **Default behavior**: Falls back to browser default when no timeout specified
-- **Real-world performance**: Successfully handled 1000+ character translation in 30 seconds
-
-### Progressive Typing Strategy (Validated)
-- **Short text** (<= 100 chars): Normal typing simulation
-- **Medium text** (101-500 chars): Chunked typing with pauses
-- **Long text** (> 500 chars): Progressive chunks with extended timeouts
-- **Adaptive chunking**: Dynamically adjusts chunk size based on text length
-- **GitHub validation**: Successfully replaced entire issue content (English → Chinese)
-
-### Testing Coverage
-- ✅ Basic timeout functionality with auto and explicit values
-- ✅ Parameter validation (too low, too high, invalid format)
-- ✅ Progressive typing scenarios for different text lengths
-- ✅ Integration with existing set_value test suite
-- ✅ All 41 integration tests passing
-- ✅ Real-world GitHub editing workflow validated
-
-## Real-World Use Case: GitHub Issue Translation
-**Task Completed**: June 2, 2025
-- **Source**: GitHub issue #4 in English (bug report about X.com automation)
-- **Target**: Complete translation to Chinese
-- **Process**:
-  1. `navigate_to` → GitHub issue URL
-  2. `click_element` → Edit button (dropdown menu)
-  3. `click_element` → Edit option in menu
-  4. `set_value` → Replace entire content with Chinese translation (1000+ chars)
-  5. `click_element` → Save button
-- **Outcome**: ✅ Complete success, issue now displays in Chinese
-- **Performance**: 30-second execution time for large text replacement
-
-## Next Steps
-- **Priority**: Fix click_element DOM state caching issue to ensure reliable element location
-- System shows production-ready capability with proven real-world validation
-- Enhanced set_value tool handles complex content replacement scenarios
-- Ready for integration into larger automation workflows after click_element fix
-
-## Key Learning & Decisions
-- **Simplification Success**: Removing LLM features dramatically simplified the architecture
-- **MCP Focus**: Pure browser automation through MCP protocol is a clean, powerful approach
-- **Modular Design**: Handler pattern makes adding new tools straightforward
-- **Testing Investment**: Comprehensive integration tests provide confidence in functionality
-- **Real-World Validation**: GitHub workflow demonstrates production readiness for complex tasks
-- **Progressive Typing Success**: Large content replacement works reliably with timeout support
-- **DOM State Management**: Critical importance of cache consistency between tools identified
+## Recent Insights
+- Element location reliability is critical for browser automation success
+- Multiple fallback strategies are essential for handling diverse web page structures
+- Strict attribute verification prevents false positive element matches
+- Proper TypeScript typing is crucial for maintainable browser automation code
