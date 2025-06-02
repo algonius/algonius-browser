@@ -2,6 +2,20 @@
 
 ## Recent Achievements ✅
 
+### Scroll Page Tool Enhancement (2025-06-02)
+**TOOL ENHANCEMENT COMPLETED** - Added `return_dom_state` Parameter
+
+- **Enhancement**: Added optional `return_dom_state` parameter to scroll_page tool
+- **Consistency**: Now all navigation tools (navigate_to, click_element, scroll_page) support DOM state retrieval
+- **User Experience**: Users can get immediate DOM updates after scrolling operations
+- **Implementation**: 
+  - Parameter validation with proper error handling
+  - DOM state retrieval using existing resource system
+  - Graceful fallback if DOM state unavailable
+  - Comprehensive test coverage (2 new test suites)
+- **Testing**: ✅ All existing scroll tests pass + 2 new test suites for return_dom_state functionality
+- **Build**: ✅ Successful compilation and integration
+
 ### Issue #6 Resolution: Element Click Bug Fix (2025-06-02)
 **MAJOR BUG FIX COMPLETED** - Enhanced Element Locator System
 

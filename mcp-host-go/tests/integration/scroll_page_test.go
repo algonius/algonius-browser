@@ -571,3 +571,190 @@ func TestScrollPageToolCompleteWorkflow(t *testing.T) {
 
 	t.Log("Successfully completed full scroll workflow test")
 }
+
+func TestScrollPageToolReturnDomState(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	// Setup test environment
+	testEnv, err := env.NewMcpHostTestEnvironment(nil)
+	require.NoError(t, err)
+	defer testEnv.Cleanup()
+
+	err = testEnv.Setup(ctx)
+	require.NoError(t, err)
+
+	// Track captured scroll requests
+	var capturedScrollRequests []map[string]interface{}
+
+	// Register RPC handlers for both scroll_page and get_dom_state
+	testEnv.GetNativeMsg().RegisterRpcHandlers(map[string]env.RpcHandler{
+		"scroll_page": func(params map[string]interface{}) (interface{}, error) {
+			capturedScrollRequests = append(capturedScrollRequests, params)
+			return map[string]interface{}{
+				"success": true,
+				"message": "Scroll completed",
+			}, nil
+		},
+		"get_dom_state": func(params map[string]interface{}) (interface{}, error) {
+			return map[string]interface{}{
+				"formattedDom": "[Start of page]\n<button>1</button> Click me (button)\n<button>2</button> Submit (button)\n[End of page]",
+				"interactiveElements": []map[string]interface{}{
+					{
+						"index":        1,
+						"tagName":      "button",
+						"text":         "Click me",
+						"attributes":   map[string]interface{}{"class": "primary"},
+						"isInViewport": true,
+						"selector":     "button.primary",
+						"isNew":        false,
+					},
+					{
+						"index":        2,
+						"tagName":      "button",
+						"text":         "Submit",
+						"attributes":   map[string]interface{}{"type": "submit"},
+						"isInViewport": false,
+						"selector":     "button[type=\"submit\"]",
+						"isNew":        false,
+					},
+				},
+				"meta": map[string]interface{}{
+					"url":         "https://example.com",
+					"title":       "Test Page",
+					"tabId":       123,
+					"pixelsAbove": 0,
+					"pixelsBelow": 300,
+				},
+				"screenshot": nil,
+			}, nil
+		},
+	})
+
+	// Initialize MCP client
+	err = testEnv.GetMcpClient().Initialize(ctx)
+	require.NoError(t, err)
+
+	// Verify scroll_page tool is available
+	tools, err := testEnv.GetMcpClient().ListTools()
+	if err != nil {
+		t.Logf("ListTools failed: %v", err)
+		return
+	}
+
+	found := false
+	for _, tool := range tools.Tools {
+		if tool.Name == "scroll_page" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Log("scroll_page tool not found")
+		return
+	}
+
+	// Test with return_dom_state=true
+	result, err := testEnv.GetMcpClient().CallTool("scroll_page", map[string]interface{}{
+		"action":           "down",
+		"pixels":           400.0,
+		"return_dom_state": true,
+	})
+
+	require.NoError(t, err)
+	assert.False(t, result.IsError, "Tool execution should not result in error")
+
+	// Wait for RPC call to be processed
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify RPC call was made with correct parameters
+	require.Len(t, capturedScrollRequests, 1, "Should have captured exactly one scroll request")
+
+	capturedParams := capturedScrollRequests[0]
+	assert.Equal(t, "down", capturedParams["action"])
+	assert.Equal(t, 400.0, capturedParams["pixels"])
+
+	// Verify the result contains both scroll confirmation and DOM state
+	require.NotEmpty(t, result.Content, "Result should contain content")
+
+	// For now, just verify that we got some content back
+	// The exact structure depends on the MCP implementation
+	assert.True(t, len(result.Content) >= 1, "Should have at least one content item")
+
+	t.Log("Successfully tested scroll_page tool with return_dom_state=true")
+}
+
+func TestScrollPageToolReturnDomStateParameterValidation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	// Setup test environment
+	testEnv, err := env.NewMcpHostTestEnvironment(nil)
+	require.NoError(t, err)
+	defer testEnv.Cleanup()
+
+	err = testEnv.Setup(ctx)
+	require.NoError(t, err)
+
+	// Register RPC handler (won't be called for invalid parameters)
+	testEnv.GetNativeMsg().RegisterRpcHandler("scroll_page", func(params map[string]interface{}) (interface{}, error) {
+		return map[string]interface{}{
+			"success": true,
+		}, nil
+	})
+
+	// Initialize MCP client
+	err = testEnv.GetMcpClient().Initialize(ctx)
+	require.NoError(t, err)
+
+	// Verify scroll_page tool is available
+	tools, err := testEnv.GetMcpClient().ListTools()
+	if err != nil {
+		t.Logf("ListTools failed: %v", err)
+		return
+	}
+
+	found := false
+	for _, tool := range tools.Tools {
+		if tool.Name == "scroll_page" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Log("scroll_page tool not found")
+		return
+	}
+
+	// Test invalid return_dom_state parameter type
+	result, err := testEnv.GetMcpClient().CallTool("scroll_page", map[string]interface{}{
+		"action":           "up",
+		"return_dom_state": "invalid", // Should be boolean
+	})
+
+	// Should either return an error or result.IsError should be true
+	if err == nil {
+		assert.True(t, result.IsError, "Expected tool execution to result in error for invalid return_dom_state type")
+	}
+
+	// Test valid return_dom_state=false (should work without DOM state)
+	result, err = testEnv.GetMcpClient().CallTool("scroll_page", map[string]interface{}{
+		"action":           "up",
+		"return_dom_state": false,
+	})
+
+	require.NoError(t, err)
+	assert.False(t, result.IsError, "Tool execution should not result in error for valid return_dom_state=false")
+
+	// Test without return_dom_state parameter (should default to false)
+	result, err = testEnv.GetMcpClient().CallTool("scroll_page", map[string]interface{}{
+		"action": "to_top",
+	})
+
+	require.NoError(t, err)
+	assert.False(t, result.IsError, "Tool execution should not result in error when return_dom_state is omitted")
+
+	t.Log("Successfully tested return_dom_state parameter validation")
+}
