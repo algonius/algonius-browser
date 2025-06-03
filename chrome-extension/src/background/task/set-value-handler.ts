@@ -46,14 +46,23 @@ export class SetValueHandler {
     this.logger.debug('Received set_value request:', request);
 
     try {
-      const { target, value, options = {}, target_type, timeout = 'auto' } = request.params || {};
+      const { element_index, value, options = {} } = request.params || {};
 
       // Validate required parameters
-      if (target === undefined || target === null) {
+      if (element_index === undefined || element_index === null) {
         return {
           error: {
             code: -32602,
-            message: 'Missing required parameter: target',
+            message: 'Missing required parameter: element_index',
+          },
+        };
+      }
+
+      if (typeof element_index !== 'number' || element_index < 0) {
+        return {
+          error: {
+            code: -32602,
+            message: 'element_index must be a non-negative number',
           },
         };
       }
@@ -96,9 +105,9 @@ export class SetValueHandler {
         };
       }
 
-      // Locate the target element
-      const elementResult = await this.locateElement(currentPage, target, target_type);
-      if (!elementResult.success) {
+      // Locate the target element by index
+      const elementNode = await findElementByHighlightIndex(currentPage, element_index);
+      if (!elementNode) {
         // Get total element count for better error context
         const selectorMap = currentPage.getSelectorMap();
         const totalElements = selectorMap.size;
@@ -106,11 +115,10 @@ export class SetValueHandler {
         return {
           error: {
             code: -32000,
-            message: `${elementResult.error || 'Failed to locate target element'}. Page has ${totalElements} interactive elements. Use get_dom_extra_elements tool to see available elements.`,
+            message: `Element with index ${element_index} not found in DOM state. Page has ${totalElements} interactive elements. Use get_dom_extra_elements tool to see available elements.`,
             data: {
               error_code: 'ELEMENT_NOT_FOUND',
-              target,
-              target_type,
+              element_index,
               available_element_count: totalElements,
               suggested_action: 'Use get_dom_extra_elements tool to list available elements',
             },
@@ -118,13 +126,8 @@ export class SetValueHandler {
         };
       }
 
-      const { elementNode, elementIndex } = elementResult;
-
       // Determine input strategy
       const strategy = this.determineInputStrategy(elementNode!, value);
-
-      // Calculate intelligent timeout for the operation
-      const operationTimeout = this.calculateOperationTimeout(timeout, value, strategy.elementType, currentPage);
       if (!strategy.canHandle) {
         const supportedTypes = ['input', 'select', 'textarea', 'contenteditable'];
         const suggestedActions = [
@@ -168,9 +171,7 @@ export class SetValueHandler {
       const result = {
         success: true,
         message: `Successfully set ${strategy.elementType} to "${setResult.actualValue}" using ${strategy.method} method`,
-        target,
-        target_type,
-        element_index: elementIndex,
+        element_index,
         element_type: strategy.elementType,
         input_method: strategy.method,
         actual_value: setResult.actualValue,

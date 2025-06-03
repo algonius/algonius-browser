@@ -57,20 +57,10 @@ func (t *SetValueTool) GetInputSchema() interface{} {
 	return map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
-			"target": map[string]interface{}{
-				"oneOf": []map[string]interface{}{
-					{
-						"type":        "number",
-						"description": "Element index from DOM state",
-						"minimum":     0,
-					},
-					{
-						"type":        "string",
-						"description": "Element description, label text, or identifier",
-						"minLength":   1,
-					},
-				},
-				"description": "Target element (index or text description)",
+			"element_index": map[string]interface{}{
+				"type":        "number",
+				"description": "Index of the element to set value (0-based, from DOM state interactive_elements)",
+				"minimum":     0,
 			},
 			"value": map[string]interface{}{
 				"description": "Value to set (string, number, boolean, or array for multi-select)",
@@ -104,7 +94,7 @@ func (t *SetValueTool) GetInputSchema() interface{} {
 				"additionalProperties": false,
 			},
 		},
-		"required":             []string{"target", "value"},
+		"required":             []string{"element_index", "value"},
 		"additionalProperties": false,
 	}
 }
@@ -114,10 +104,10 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 	startTime := time.Now()
 	t.logger.Info("Executing set_value tool", zap.Any("args", args))
 
-	// Extract and validate target
-	targetArg, exists := args["target"]
+	// Extract and validate element_index
+	elementIndexArg, exists := args["element_index"]
 	if !exists {
-		return types.ToolResult{}, fmt.Errorf("target is required")
+		return types.ToolResult{}, fmt.Errorf("element_index is required")
 	}
 
 	// Extract and validate value
@@ -190,34 +180,28 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		}
 	}
 
-	// Validate target parameter
-	var targetType string
-	switch target := targetArg.(type) {
+	// Validate element_index parameter
+	var elementIndex int
+	switch v := elementIndexArg.(type) {
 	case float64:
-		if target < 0 {
-			return types.ToolResult{}, fmt.Errorf("target index must be non-negative")
+		if v < 0 {
+			return types.ToolResult{}, fmt.Errorf("element_index must be non-negative, got: %v", v)
 		}
-		targetType = "index"
+		elementIndex = int(v)
 	case int:
-		if target < 0 {
-			return types.ToolResult{}, fmt.Errorf("target index must be non-negative")
+		if v < 0 {
+			return types.ToolResult{}, fmt.Errorf("element_index must be non-negative, got: %v", v)
 		}
-		targetType = "index"
-	case string:
-		if len(target) == 0 {
-			return types.ToolResult{}, fmt.Errorf("target description cannot be empty")
-		}
-		targetType = "description"
+		elementIndex = v
 	default:
-		return types.ToolResult{}, fmt.Errorf("target must be a number (index) or string (description)")
+		return types.ToolResult{}, fmt.Errorf("element_index must be a number, got: %T", elementIndexArg)
 	}
 
 	// Prepare RPC parameters
 	rpcParams := map[string]interface{}{
-		"target":      targetArg,
-		"value":       valueArg,
-		"options":     options,
-		"target_type": targetType,
+		"element_index": elementIndex,
+		"value":         valueArg,
+		"options":       options,
 	}
 
 	// Calculate enhanced buffer time
@@ -230,14 +214,13 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 	}
 
 	t.logger.Info("Starting set_value operation",
-		zap.Any("target", targetArg),
+		zap.Int("element_index", elementIndex),
 		zap.Int("value_length", len(fmt.Sprintf("%v", valueArg))),
 		zap.Int("calculated_timeout", rpcTimeout),
 		zap.Int("buffer_time", bufferTime))
 
 	t.logger.Debug("Sending set_value RPC request",
-		zap.Any("target", targetArg),
-		zap.String("target_type", targetType),
+		zap.Int("element_index", elementIndex),
 		zap.Any("value", valueArg),
 		zap.Any("options", options))
 
@@ -291,7 +274,7 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 
 	if !success {
 		// Handle failure case
-		message := fmt.Sprintf("Failed to set value on target: %v", targetArg)
+		message := fmt.Sprintf("Failed to set value on element at index %d", elementIndex)
 		if msgVal, exists := resultData["message"]; exists {
 			if msgStr, ok := msgVal.(string); ok {
 				message = msgStr
@@ -306,7 +289,7 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		}
 
 		t.logger.Warn("Set value failed",
-			zap.Any("target", targetArg),
+			zap.Int("element_index", elementIndex),
 			zap.String("error_code", errorCode),
 			zap.String("message", message),
 			zap.Float64("execution_time", executionTime))
@@ -315,7 +298,7 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 	}
 
 	// Handle success case
-	message := fmt.Sprintf("Successfully set value on target: %v", targetArg)
+	message := fmt.Sprintf("Successfully set value on element at index %d", elementIndex)
 	if msgVal, exists := resultData["message"]; exists {
 		if msgStr, ok := msgVal.(string); ok {
 			message = msgStr
@@ -349,32 +332,22 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		}
 	}
 
-	var elementIndex interface{}
-	if indexVal, exists := resultData["element_index"]; exists {
-		elementIndex = indexVal
-	}
-
 	t.logger.Info("Set value successful",
-		zap.Any("target", targetArg),
+		zap.Int("element_index", elementIndex),
 		zap.String("element_type", elementType),
 		zap.String("input_method", inputMethod),
 		zap.Any("actual_value", actualValue),
-		zap.Any("element_index", elementIndex),
 		zap.Float64("execution_time", executionTime))
 
 	// Create detailed success response
 	responseText := fmt.Sprintf(`Set Value Result:
 - Status: Success
 - Message: %s
-- Target: %v
+- Element Index: %d
 - Value Set: %v
 - Element Type: %s
 - Input Method: %s
-- Execution Time: %.2f seconds`, message, targetArg, actualValue, elementType, inputMethod, executionTime)
-
-	if elementIndex != nil {
-		responseText += fmt.Sprintf("\n- Element Index: %v", elementIndex)
-	}
+- Execution Time: %.2f seconds`, message, elementIndex, actualValue, elementType, inputMethod, executionTime)
 
 	if elementInfo != nil {
 		if text, exists := elementInfo["text"]; exists && text != nil && text != "" {
