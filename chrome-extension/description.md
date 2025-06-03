@@ -1,232 +1,215 @@
 # Algonius Browser - Chrome Web Store Description
 
 ## Short Description (132 characters max)
-AI-powered web automation extension with MCP integration. Free alternative to premium tools with privacy-first local processing.
+MCP browser automation server. Exposes browser control tools to external AI systems via Model Context Protocol. Open-source & secure.
 
 ## Detailed Description
 
-### 🤖 Transform Your Web Browsing with AI Automation
+### 🌐 Browser Automation via Model Context Protocol
 
-**Algonius Browser** is a revolutionary open-source Chrome extension that brings the power of AI web automation directly to your browser. Designed as a free alternative to expensive premium tools like OpenAI Operator ($200/month), Algonius Browser delivers enterprise-grade web automation capabilities while keeping your data completely private and secure.
+**Algonius Browser** is an open-source MCP (Model Context Protocol) server that provides comprehensive browser automation capabilities to external AI systems. It serves as a bridge between AI assistants and web browsers, enabling programmatic control of web navigation, DOM interaction, and content extraction through a standardized protocol.
 
 ### ✨ Why Choose Algonius Browser?
 
-#### 🆓 **Completely Free & Open Source**
-- Zero subscription fees - you only pay for your own API usage
-- Full transparency with open-source codebase
+#### 🔗 **MCP Protocol Integration**
+- Standard interface for AI systems to control browser automation
+- Compatible with any MCP-compliant AI assistant or tool
+- Structured tool definitions with comprehensive parameter validation
+- Real-time resource notifications for browser state changes
+
+#### 🆓 **Open Source & Free**
+- No subscription fees or usage limits
+- Complete transparency with open-source codebase
 - Community-driven development and improvements
-- No vendor lock-in or hidden costs
+- Apache 2.0 license for commercial and personal use
 
-#### 🔒 **Privacy-First Design**
-- All processing happens locally in your browser
-- No data sent to external servers
-- Your credentials and browsing data stay on your device
-- Complete control over your automation activities
+#### 🔒 **Secure Architecture**
+- Chrome Native Messaging for secure communication
+- Local processing with no external data transmission
+- Sandboxed browser environment for safe automation
+- Minimal permissions required for operation
 
-#### 🧠 **Multi-Agent AI System**
-- **Planner Agent**: Breaks down complex tasks into manageable steps
-- **Navigator Agent**: Executes browser actions and interprets web content
-- **Validator Agent**: Verifies task completion and result accuracy
-- Collaborative agents work together for optimal results
+#### 🛠️ **Enterprise-Grade Reliability**
+- Comprehensive test coverage with 50+ integration tests
+- 95%+ success rates across all automation tools
+- Robust error handling and graceful degradation
+- Cross-platform support (Windows, macOS, Linux)
 
-#### 🔌 **Flexible LLM Integration**
-- Support for multiple AI providers: OpenAI, Anthropic Claude, Google Gemini, Ollama
-- Assign different models to different agents based on your needs and budget
-- Local model support with Ollama for maximum privacy
-- Easy configuration through intuitive interface
+### 🚀 Core MCP Tools & Resources
 
-### 🚀 Core Capabilities
+#### **6 Browser Automation Tools**
+- **`navigate_to`**: Navigate to URLs with intelligent timeout handling
+- **`manage_tabs`**: Create, close, and switch between browser tabs
+- **`get_dom_extra_elements`**: Advanced DOM element extraction with pagination and filtering
+- **`click_element`**: Click DOM elements using CSS selectors or text matching
+- **`set_value`**: Set values in input fields, textareas, and form elements
+- **`scroll_page`**: Scroll pages in multiple directions with customizable parameters
 
-#### **Smart Web Automation**
-- **Intelligent Navigation**: Navigate websites with AI understanding of page structure
-- **Form Automation**: Fill out complex forms with intelligent field detection
-- **Element Interaction**: Click buttons, links, and interactive elements reliably
-- **Content Extraction**: Extract and summarize information from web pages
-- **Multi-Tab Management**: Coordinate actions across multiple browser tabs
+#### **2 Browser State Resources**
+- **`browser://current/state`**: Complete browser state in AI-friendly Markdown format
+- **`browser://dom/state`**: Current DOM overview with interactive elements and metadata
 
 #### **Advanced Features**
-- **Progressive Typing**: Optimized text input for large forms and documents
-- **Intelligent Scrolling**: Smart page navigation with context awareness
-- **Error Recovery**: Automatic retry mechanisms for reliable automation
-- **Visual Element Detection**: Advanced element location with multiple fallback strategies
-- **Real-time Feedback**: Live status updates and transparent action reporting
-
-#### **MCP Integration (Model Context Protocol)**
-- Expose browser capabilities to external AI systems
-- Standardized interface for AI-browser communication
-- Secure Native Messaging for external tool integration
-- Enable specialized AI tools to utilize browser automation
+- **Pagination Support**: Handle large DOM structures efficiently
+- **Element Filtering**: Filter elements by type (button, input, link, etc.)
+- **Progressive Typing**: Optimized text input for large forms
+- **Multi-Tab Coordination**: Manage complex workflows across multiple tabs
+- **Real-Time Updates**: Browser state resources update automatically
 
 ### 🎯 Perfect For
 
-#### **Professionals & Researchers**
-- Automate data collection from multiple websites
+#### **AI Assistant Integration**
+- Enable Claude, ChatGPT, or other AI systems with browser capabilities
+- Build custom AI tools that need web automation
+- Create specialized research and data collection assistants
+- Develop automated testing and monitoring systems
+
+#### **Developer Workflows**
+- Web scraping and data extraction automation
+- Automated testing and quality assurance
 - Research automation and competitive analysis
+- Form filling and repetitive task automation
+
+#### **Business Applications**
 - Lead generation and market research
-- Content aggregation and monitoring
+- E-commerce monitoring and price tracking
+- Content aggregation from multiple sources
+- Customer research and analysis automation
 
-#### **Developers & Power Users**
-- Web testing and quality assurance automation
-- Repetitive task automation
-- Integration with AI development workflows
-- Custom automation script development
+### 🏗️ Technical Architecture
 
-#### **Business Users**
-- E-commerce automation and monitoring
-- Social media management tasks
-- Customer research and analysis
-- Workflow optimization
+#### **Clean MCP Implementation**
+```
+External AI System → MCP Protocol → Go Host → Native Messaging → Chrome Extension → Browser APIs
+```
 
-### 🛡️ Enterprise-Grade Reliability
+#### **Component Overview**
+- **MCP Host**: Go-based native messaging host implementing MCP protocol
+- **Chrome Extension**: Background service worker with tool handlers
+- **Content Scripts**: DOM interaction and data extraction utilities
+- **Native Messaging**: Secure bidirectional communication channel
 
-#### **Proven Performance**
+#### **Technology Stack**
+- **Go**: High-performance MCP host with native messaging
+- **TypeScript**: Type-safe Chrome extension implementation
+- **Chrome APIs**: Advanced browser automation capabilities
+- **MCP Protocol**: Standardized AI-browser communication
+
+### 📈 Common Use Cases & Workflows
+
+#### **Web Scraping Automation**
+1. `navigate_to` → Go to target website
+2. `browser://dom/state` → Get page overview
+3. `get_dom_extra_elements` → Extract specific data with pagination
+4. `scroll_page` → Load additional content
+5. `browser://current/state` → Get complete extracted data
+
+#### **Form Automation**
+1. `navigate_to` → Navigate to form page
+2. `browser://dom/state` → Identify form fields
+3. `set_value` → Fill multiple form fields
+4. `click_element` → Submit form
+5. `manage_tabs` → Handle form submission results
+
+#### **Multi-Site Research**
+1. `browser://current/state` → Check available tabs
+2. `manage_tabs` → Open multiple research targets
+3. `navigate_to` → Load content in each tab
+4. `get_dom_extra_elements` → Extract data from each site
+5. `browser://current/state` → Compile results from all tabs
+
+### 🛡️ Reliability & Performance
+
+#### **Proven Metrics**
 - 95%+ element location success rate
 - 98%+ navigation success rate
 - 97%+ form interaction success rate
-- Comprehensive test coverage with 50+ integration tests
+- Comprehensive error handling with detailed feedback
 
-#### **Robust Architecture**
+#### **Advanced Capabilities**
 - Multi-strategy element location with intelligent fallbacks
 - Automatic timeout detection and optimization
-- Cross-platform compatibility (Windows, macOS, Linux)
-- Memory-efficient with proper resource cleanup
+- Memory-efficient operation with proper resource cleanup
+- Graceful handling of complex websites and edge cases
 
-#### **Advanced Error Handling**
-- Graceful degradation for complex websites
-- Detailed error reporting and debugging
-- Automatic recovery from temporary failures
-- Comprehensive logging for troubleshooting
+### 🔧 Integration & Setup
 
-### 🔧 Technical Excellence
+#### **Quick Installation**
+1. Install Chrome extension from Web Store
+2. Download and install MCP host from GitHub releases
+3. Configure your AI system to connect to MCP server
+4. Start automating with simple tool calls
 
-#### **Modern Technology Stack**
-- Built with TypeScript for type safety and reliability
-- Vite-powered build system for optimal performance
-- Chrome Extension Manifest V3 compliance
-- Integration with Puppeteer for advanced browser control
+#### **System Requirements**
+- Chrome/Chromium 88+ or Microsoft Edge 88+
+- 4GB RAM recommended for complex automations
+- 50MB disk space for installation
+- Stable internet connection for AI system communication
 
-#### **Security & Compliance**
-- Minimal permission requirements
-- Sandbox isolation for each browsing context
-- Secure communication protocols
-- Regular security audits and updates
+#### **Supported Platforms**
+- Windows x86_64
+- macOS (Intel and Apple Silicon)
+- Linux x86_64
 
-### 📈 Use Cases & Examples
+### 🌟 Developer Experience
 
-#### **Research Automation**
-"I need to collect pricing information from 50 e-commerce websites for competitive analysis"
-→ Algonius Browser navigates each site, extracts pricing data, and compiles results
+#### **Comprehensive Documentation**
+- Complete MCP tool schemas and examples
+- Integration guides for popular AI systems
+- Troubleshooting guides and best practices
+- Active community support and examples
 
-#### **Form Processing**
-"I need to fill out job applications on multiple career websites"
-→ Automatically fills forms using your profile data across different platforms
+#### **Robust Testing**
+- 50+ integration tests covering all functionality
+- Automated CI/CD for reliability assurance
+- Performance benchmarks and optimization metrics
+- Regular compatibility testing across platforms
 
-#### **Content Monitoring**
-"I want to track news mentions of my company across various news sites"
-→ Monitors specified websites and alerts you to relevant content updates
+### 🚀 Getting Started
 
-#### **Data Extraction**
-"I need to extract contact information from business directories"
-→ Systematically navigates directories and extracts structured contact data
+#### **For AI System Developers**
+- Connect to MCP server endpoint
+- Use standardized tool calls and resource requests
+- Handle responses and errors appropriately
+- Build complex workflows using multiple tools
 
-### 🌟 Community & Support
-
-#### **Active Development**
-- Regular updates and feature improvements
-- Responsive community support
-- Comprehensive documentation
-- Tutorial videos and guides
-
-#### **Open Source Benefits**
-- View and audit all source code
-- Contribute features and improvements
-- Customize for specific needs
-- No vendor dependency risks
-
-### 📋 System Requirements
-
-#### **Supported Browsers**
-- Google Chrome (recommended)
-- Microsoft Edge
-- Other Chromium-based browsers
-
-#### **Minimum Requirements**
-- Chrome 88 or higher
-- 4GB RAM recommended
-- Stable internet connection for AI API calls
-- 50MB free disk space
-
-### 🚀 Get Started in Minutes
-
-1. **Install Extension**: One-click installation from Chrome Web Store
-2. **Configure AI Provider**: Add your preferred AI service API key
-3. **Start Automating**: Begin with simple tasks and build complexity
-4. **Join Community**: Connect with other users for tips and support
-
-### 💡 Why Upgrade from Manual Browsing?
-
-#### **Time Savings**
-- Automate hours of repetitive browsing in minutes
-- Handle complex multi-step workflows effortlessly
-- Focus on high-value tasks while AI handles routine work
-
-#### **Accuracy & Consistency**
-- Eliminate human errors in data entry and navigation
-- Ensure consistent execution of complex procedures
-- Reliable results across different websites and interfaces
-
-#### **Scalability**
-- Handle tasks across dozens of websites simultaneously
-- Process large datasets efficiently
-- Scale operations without proportional time investment
-
-### 🔮 Future-Ready Platform
-
-#### **Continuous Innovation**
-- Regular feature updates based on community feedback
-- Integration with emerging AI technologies
-- Expanding automation capabilities
-- Enhanced MCP ecosystem integration
-
-#### **Growing Ecosystem**
-- Compatible with external AI tools and services
-- Plugin architecture for custom extensions
-- API access for developers
-- Integration with workflow automation platforms
+#### **For End Users**
+- Install extension and MCP host
+- Configure your preferred AI assistant
+- Start with simple navigation tasks
+- Build up to complex multi-step automations
 
 ---
 
-**Download Algonius Browser today and experience the future of AI-powered web automation - free, private, and incredibly powerful.**
+**Transform your AI assistant with powerful browser automation capabilities through the standardized Model Context Protocol interface.**
 
-*Join thousands of users who have already revolutionized their web browsing experience with intelligent automation.*
+*Join the growing community of developers building the future of AI-browser integration.*
 
 ## Additional Keywords for SEO
-web automation, AI browser extension, chrome automation, form filler, data extraction, web scraping, productivity tool, AI assistant, browser bot, workflow automation, RPA alternative, open source automation, privacy-focused AI, multi-agent system, MCP integration, free automation tool
-
-## Privacy Policy Note
-This extension requires minimal permissions and processes all data locally. No user data is transmitted to external servers except for direct API calls to your configured AI providers. Full privacy policy available at [website].
+MCP server, Model Context Protocol, browser automation, AI integration, web scraping, Chrome extension, native messaging, DOM automation, tab management, AI assistant tools, programmatic browser control, open source automation
 
 ## Chrome Web Store Category Recommendations
 
-### Primary Category: **Productivity**
-This is the most appropriate category as Algonius Browser is designed to enhance productivity through web automation and AI assistance.
+### Primary Category: **Developer Tools**
+This is the most appropriate category as Algonius Browser is primarily a development tool that provides MCP protocol interface for AI systems and developers.
 
 ### Alternative Categories:
-1. **Developer Tools** - Given the technical nature and MCP integration for developers
-2. **Workflow & Planning** - For the multi-agent task planning and execution capabilities
-3. **Accessibility** - As it helps users automate complex web interactions
+1. **Productivity** - For the automation and efficiency benefits
+2. **Accessibility** - As it helps automate complex web interactions
+3. **Workflow & Planning** - For the structured automation workflows
 
-### Justification for "Productivity":
-- Automates repetitive web tasks to save time
-- Increases efficiency in research, data collection, and form filling
-- Helps users focus on high-value work by handling routine browsing tasks
-- Provides AI assistance for complex web workflows
-- Streamlines business processes and personal productivity
+### Justification for "Developer Tools":
+- Implements technical protocols (MCP) for AI system integration
+- Provides APIs and tools for developers building AI applications
+- Requires technical knowledge to configure and integrate
+- Serves as infrastructure for other applications and tools
+- Focuses on programmatic browser control rather than end-user features
 
-This category aligns perfectly with Chrome Web Store's definition of productivity tools that "help users get things done more efficiently."
+## Privacy Policy Note
+This extension operates locally and only communicates with your configured AI systems via the MCP protocol. No user data is collected, stored, or transmitted to external servers. All browser automation happens on your device.
 
 ## Support & Documentation
-- GitHub Repository: [link]
-- Documentation: [link]
-- Community Support: [link]
-- Video Tutorials: [link]
+- GitHub Repository: https://github.com/algonius/algonius-browser
+- Documentation: Available in docs/ directory
+- Community Support: GitHub Discussions and Discord
+- Installation Guide: Automated scripts for all platforms
