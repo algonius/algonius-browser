@@ -1,7 +1,7 @@
 {
   "extensionDescription": {
     "description": "Extension description",
-    "message": "Open-source MCP server providing browser automation capabilities for AI systems."
+    "message": "MCP browser automation server. Exposes browser control tools to external AI systems via Model Context Protocol. Open-source & secure."
   },
   "extensionName": {
     "description": "Extension name",
