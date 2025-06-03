@@ -24,6 +24,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: master
 
       - name: Validate and prepare version
         id: version
@@ -45,9 +47,36 @@ jobs:
           echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           echo "Prepared version: $VERSION"
 
+  update-versions:
+    name: Update Versions
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+      - name: Update version in package.json files
+        run: |
+          VERSION=${{ needs.prepare-release.outputs.version }}
+          bash update_version.sh $VERSION
+          
+          # Commit version changes
+          git add .
+          git commit -m "chore: bump version to $VERSION" || echo "No changes to commit"
+          git push origin master
+
   build-and-test:
     name: Build and Test
-    needs: prepare-release
+    needs: [prepare-release, update-versions]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -63,6 +92,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: master
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -78,6 +109,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build ${{ matrix.name }}
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare-release.outputs.version }}
         run: ${{ matrix.build_cmd }}
 
       - name: Create zip package
@@ -186,20 +219,6 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: '9.15.1'
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Update version in package.json files
-        run: |
-          VERSION=${{ needs.prepare-release.outputs.version }}
-          bash update_version.sh $VERSION
-          
-          # Commit version changes
-          git add .
-          git commit -m "chore: bump version to $VERSION" || echo "No changes to commit"
 
       - name: Create and push tag
         run: |

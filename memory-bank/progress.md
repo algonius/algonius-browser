@@ -248,3 +248,56 @@ cd mcp-host-go/tests/integration && go test -v
   - 面向未来的改进建议
 
 This represents a mature, production-ready browser automation system with enterprise-grade reliability and comprehensive testing coverage. The recent element location fix addresses the final major reliability issue, bringing the system to production readiness.
+
+## Latest Updates ✅
+
+### Version Management & Release Workflow Fix (2025-06-04)
+**RELEASE SYSTEM OVERHAUL COMPLETED** - Production-Ready CI/CD Pipeline
+
+#### Version Management System ✅
+- **Problem Solved**: Hardcoded version "0.1.0" in popup interface
+- **Solution Implemented**:
+  - Modified Vite configuration to inject `PACKAGE_VERSION` environment variable
+  - Updated popup component to use `process.env.PACKAGE_VERSION` dynamically
+  - Added comprehensive TypeScript definitions in `vite-env.d.ts`
+  - Modified build scripts to pass version from root `package.json`
+  - Both local (`pnpm build`) and CI builds now inject correct version
+
+#### GitHub Actions Workflow Fix ✅
+- **Problem Solved**: Build process ran before version updates, causing version mismatch in releases
+- **Solution Implemented**:
+  - **Restructured Workflow Jobs**: 
+    - `prepare-release` → `update-versions` → `build-and-test` → `create-release`
+    - Added proper job dependencies with `needs` declarations
+  - **New Update-Versions Job**: 
+    - Runs `update_version.sh` script to update all package.json files
+    - Commits and pushes version changes to master branch
+    - Ensures all subsequent jobs use updated versions
+  - **Enhanced Build Process**:
+    - Added `PACKAGE_VERSION` environment variable injection
+    - Fixed checkout references to pull updated code
+    - Maintained all existing build matrix for Chrome/Firefox
+
+#### Technical Implementation Details
+- **Files Modified**:
+  - `.github/workflows/release.yml` - Complete workflow restructure
+  - `packages/vite-config/lib/withPageConfig.mjs` - Added environment variable injection
+  - `pages/popup/src/Popup.tsx` - Dynamic version display
+  - `vite-env.d.ts` - TypeScript definitions for process.env
+  - `package.json` - Build script modifications
+
+- **Benefits Achieved**:
+  - ✅ Consistent version display across all components
+  - ✅ Automated version management in CI/CD
+  - ✅ Proper execution order in release workflow
+  - ✅ No manual version update steps required
+  - ✅ Production-ready release automation
+
+#### Release Process Now Complete
+1. **Trigger**: Manual workflow dispatch with version number
+2. **Version Update**: Automatic update across all package.json files
+3. **Build**: Extensions built with correct version injected
+4. **Release**: GitHub release created with properly versioned artifacts
+5. **Artifacts**: Chrome extension, Firefox extension, and Go binaries for all platforms
+
+The release system is now fully automated and production-ready, eliminating all manual version management tasks and ensuring consistent versioning across the entire project.

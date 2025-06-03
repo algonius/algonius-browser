@@ -24,9 +24,11 @@ export const Popup: React.FC = () => {
 
       <footer className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
         <p className="mb-2">
-          Version 0.1.0 |{' '}
+          Version {process.env.PACKAGE_VERSION} |{' '}
           <a
             href="https://github.com/algonius/algonius-browser/issues"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-blue-600 hover:underline dark:text-blue-400">
             Help
           </a>

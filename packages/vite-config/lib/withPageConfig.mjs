@@ -36,6 +36,11 @@ export function withPageConfig(config) {
         },
         define: {
           'process.env.NODE_ENV': isDev ? `"development"` : `"production"`,
+          'process.env.PACKAGE_VERSION': JSON.stringify(
+            process.env.PACKAGE_VERSION || 
+            process.env.npm_package_version || 
+            '0.1.0'
+          ),
         },
         envDir: '../..'
       },
