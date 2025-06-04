@@ -1,40 +1,35 @@
 # Active Context
 
 ## Current Focus
-**Scroll Page Tool Enhancement Complete** - Added `return_dom_state` Parameter
+**GitHub Actions Version Display Fix Complete** - CI Environment Variable Handling
 
-### Latest Achievement (2025-06-02)
-**Enhanced scroll_page tool with optional DOM state retrieval**
+### Latest Achievement (2025-06-04)
+**Fixed version display issue in GitHub Actions CI/CD pipeline**
 
-#### Implementation Summary
-- **Added `return_dom_state` parameter** to scroll_page tool for consistency with navigate_to and click_element tools
-- **Parameter validation** with proper type checking and error handling
-- **DOM state integration** using existing DomStateRes resource system
-- **Graceful fallback** if DOM state retrieval fails (doesn't break scroll operation)
-- **Comprehensive testing** with 2 new test suites covering functionality and parameter validation
-- **Successfully compiled and tested** - all existing and new tests pass
+#### Problem Summary
+- **Issue**: Popup version display showed empty/undefined in GitHub Actions builds
+- **Root Cause**: Environment variable `PACKAGE_VERSION` was not properly transmitted during CI build process
+- **Impact**: Users saw blank version in extension popup footer, affecting professional appearance
 
-#### Technical Changes Made
-1. **Modified scroll_page.go**:
-   - Added `return_dom_state` boolean parameter to input schema (default: false)
-   - Updated Execute method to handle DOM state retrieval after successful scroll
-   - Added error handling for DOM state retrieval failures
-   - Enhanced result content to include both scroll confirmation and DOM state when requested
+#### Solution Implemented
+1. **GitHub Actions Workflow Fix** (`.github/workflows/release.yml`):
+   - **Removed env block** from build step that was causing variable scoping issues
+   - **Added explicit export** of `PACKAGE_VERSION` environment variable in build script
+   - **Enhanced debugging** with version verification logs during build
+   - **Improved variable transmission** from job outputs to build environment
 
-2. **Updated main.go**:
-   - Added DomStateRes dependency to ScrollPageTool constructor
-   - Ensures proper resource injection for DOM state functionality
-
-3. **Enhanced test coverage**:
-   - `TestScrollPageToolReturnDomState`: Tests successful DOM state retrieval after scroll
-   - `TestScrollPageToolReturnDomStateParameterValidation`: Tests parameter validation edge cases
-   - All existing scroll page tests continue to pass
+2. **Vite Configuration Enhancement** (`packages/vite-config/lib/withPageConfig.mjs`):
+   - **Added debugging logs** for CI environment variable detection
+   - **Enhanced error handling** with immediate function execution for version detection
+   - **Improved priority order** for environment variable resolution
+   - **Added CI-specific logging** to help troubleshoot future issues
 
 #### User Experience Impact
-- **Consistent API**: All navigation tools now support optional DOM state retrieval
-- **Improved workflow**: Users can get immediate DOM updates after scrolling without separate calls
-- **Backward compatible**: Existing usage continues to work (default behavior unchanged)
-- **Error resilience**: Scroll operations succeed even if DOM state retrieval fails
+- **Professional appearance**: Version now displays correctly in popup footer
+- **Consistent versioning**: Extension version matches GitHub release version
+- **Improved debugging**: CI logs now show version detection process
+- **Release reliability**: Automated version management works correctly in production builds
+- **User confidence**: Users can verify they have the correct extension version
 
 ---
 

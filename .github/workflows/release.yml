@@ -91,10 +91,16 @@ jobs:
           echo "Chrome extension package.json version: $(jq -r '.version' chrome-extension/package.json)"
 
       - name: Build ${{ matrix.name }}
-        env:
-          PACKAGE_VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
-          echo "Building ${{ matrix.name }} with version ${{ needs.prepare-release.outputs.version }}"
+          # Set version as environment variable for the build process
+          export PACKAGE_VERSION=${{ needs.prepare-release.outputs.version }}
+          echo "Building ${{ matrix.name }} with version $PACKAGE_VERSION"
+          
+          # Verify the version is available
+          echo "Environment PACKAGE_VERSION: $PACKAGE_VERSION"
+          echo "Package.json version: $(jq -r '.version' package.json)"
+          
+          # Run the build with the version environment variable
           ${{ matrix.build_cmd }}
 
       - name: Create zip package

@@ -2,6 +2,25 @@
 
 ## Recent Achievements ✅
 
+### GitHub Actions Version Display Fix (2025-06-04)
+**CI ENVIRONMENT VARIABLE HANDLING COMPLETED** - Professional Version Display
+
+- **Problem Solved**: Popup version showed empty/undefined in GitHub Actions builds
+- **Root Cause**: Environment variable `PACKAGE_VERSION` not properly transmitted during CI build
+- **Solution**: Enhanced GitHub Actions workflow with explicit environment variable export
+- **Technical Implementation**:
+  - Modified `.github/workflows/release.yml` to use explicit `export PACKAGE_VERSION`
+  - Enhanced `packages/vite-config/lib/withPageConfig.mjs` with CI debugging logs
+  - Improved environment variable priority and error handling
+  - Added build-time version verification logging
+- **User Experience Impact**:
+  - ✅ Professional version display in popup footer
+  - ✅ Consistent versioning between extension and GitHub releases
+  - ✅ Enhanced debugging capabilities for future CI issues
+  - ✅ Reliable automated version management in production builds
+- **Build Status**: ✅ GitHub Actions workflow updated and ready for next release
+- **Testing**: Version injection now works correctly in CI environment
+
 ### Set Value Tool API Simplification (2025-06-03)
 **API SIMPLIFICATION COMPLETED** - Streamlined to Element Index Only
 
