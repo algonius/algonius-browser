@@ -2,6 +2,7 @@ import React from 'react';
 import { StatusDisplay } from '@src/StatusDisplay';
 import { ControlPanel } from '@src/ControlPanel';
 import { useMcpHost } from '@extension/shared';
+import packageJson from '../../../package.json';
 
 export const Popup: React.FC = () => {
   const { status, loading, error, refreshStatus, startMcpHost, stopMcpHost } = useMcpHost();
@@ -25,7 +26,7 @@ export const Popup: React.FC = () => {
 
       <footer className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
         <p className="mb-2">
-          Version {import.meta.env.PACKAGE_VERSION} |{' '}
+          Version {packageJson.version} |{' '}
           <a
             href="https://github.com/algonius/algonius-browser/issues"
             target="_blank"

@@ -2,12 +2,14 @@
  * Installation utilities for MCP Host
  */
 
+import packageJson from '../../../../package.json';
+
 /**
  * Gets the version-specific installation URL
  * @returns The GitHub installation URL for the current extension version
  */
 export const getVersionSpecificInstallationUrl = (): string => {
-  const version = import.meta.env.PACKAGE_VERSION;
+  const version = packageJson.version;
 
   if (version && version !== 'undefined') {
     return `https://github.com/algonius/algonius-browser/tree/v${version}?tab=readme-ov-file#-quick-start`;
