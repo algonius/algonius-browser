@@ -110,8 +110,8 @@ prompt_for_extension_ids() {
   echo -e "${BLUE}[INFO]${NC} You can provide multiple IDs separated by commas." >&2
   echo >&2
   echo -e "${BLUE}[INFO]${NC} Input Format:" >&2
-  echo -e "${BLUE}[INFO]${NC}   - Just the 32-character ID: pifafhbidlgencpljdgglppkjjaadcmc" >&2
-  echo -e "${BLUE}[INFO]${NC}   - Or the full URL: chrome-extension://pifafhbidlgencpljdgglppkjjaadcmc/" >&2
+  echo -e "${BLUE}[INFO]${NC}   - Just the 32-character ID: fmcmnpejjhphnfdaegmdmahkgaccghem" >&2
+  echo -e "${BLUE}[INFO]${NC}   - Or the full URL: chrome-extension://fmcmnpejjhphnfdaegmdmahkgaccghem/" >&2
   echo >&2
   echo -e "${BLUE}[INFO]${NC} Default ID: ${DEFAULT_EXTENSION_ID}" >&2
   echo >&2
