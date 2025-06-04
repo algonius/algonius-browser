@@ -92,15 +92,13 @@ jobs:
 
       - name: Build ${{ matrix.name }}
         run: |
-          # Set version as environment variable for the build process
-          export PACKAGE_VERSION=${{ needs.prepare-release.outputs.version }}
-          echo "Building ${{ matrix.name }} with version $PACKAGE_VERSION"
+          VERSION=${{ needs.prepare-release.outputs.version }}
+          echo "Building ${{ matrix.name }} with version $VERSION"
           
           # Verify the version is available
-          echo "Environment PACKAGE_VERSION: $PACKAGE_VERSION"
           echo "Package.json version: $(jq -r '.version' package.json)"
           
-          # Run the build with the version environment variable
+          # Run the build
           ${{ matrix.build_cmd }}
 
       - name: Create zip package

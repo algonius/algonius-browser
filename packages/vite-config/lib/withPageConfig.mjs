@@ -3,6 +3,8 @@ import { watchRebuildPlugin } from '@extension/hmr';
 import react from '@vitejs/plugin-react-swc';
 import deepmerge from 'deepmerge';
 import { isDev, isProduction } from './env.mjs';
+import fs from 'fs';
+import path from 'path';
 
 export const watchOption = isDev ? {
   buildDelay: 100,
@@ -12,6 +14,37 @@ export const watchOption = isDev ? {
     ]
   }
 }: undefined;
+
+/**
+ * Get package version by reading package.json directly
+ * This ensures consistent version across all components
+ */
+function getPackageVersion() {
+  try {
+    // Try multiple paths to find the root package.json
+    const possiblePaths = [
+      path.resolve(process.cwd(), '../../package.json'),
+      path.resolve(process.cwd(), '../package.json'),
+      path.resolve(process.cwd(), 'package.json')
+    ];
+    
+    for (const packageJsonPath of possiblePaths) {
+      if (fs.existsSync(packageJsonPath)) {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+        if (packageJson.version) {
+          console.log(`[Vite Config] Found version ${packageJson.version} in ${packageJsonPath}`);
+          return packageJson.version;
+        }
+      }
+    }
+    
+    console.warn('[Vite Config] Could not find package.json with version');
+    return '0.1.0';
+  } catch (error) {
+    console.warn('[Vite Config] Failed to read package.json version:', error.message);
+    return '0.1.0';
+  }
+}
 
 /**
  * @typedef {import('vite').UserConfig} UserConfig
@@ -36,23 +69,7 @@ export function withPageConfig(config) {
         },
         define: {
           'process.env.NODE_ENV': isDev ? `"development"` : `"production"`,
-          'process.env.PACKAGE_VERSION': JSON.stringify(
-            (() => {
-              // Priority order for version detection
-              const version = process.env.PACKAGE_VERSION || 
-                            process.env.npm_package_version;
-              
-              // Log for debugging in CI
-              if (process.env.CI) {
-                console.log('[Vite Config] Environment variables:');
-                console.log('  PACKAGE_VERSION:', process.env.PACKAGE_VERSION);
-                console.log('  npm_package_version:', process.env.npm_package_version);
-                console.log('  Selected version:', version || '0.1.0');
-              }
-              
-              return version || '0.1.0';
-            })()
-          ),
+          'process.env.PACKAGE_VERSION': JSON.stringify(getPackageVersion()),
         },
         envDir: '../..'
       },
