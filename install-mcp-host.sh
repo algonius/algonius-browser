@@ -14,7 +14,7 @@ MANIFEST_NAME="ai.algonius.mcp.host.json"
 BINARY_NAME="mcp-host"
 
 # Default extension ID
-DEFAULT_EXTENSION_ID="chrome-extension://pifafhbidlgencpljdgglppkjjaadcmc/"
+DEFAULT_EXTENSION_ID="chrome-extension://fmcmnpejjhphnfdaegmdmahkgaccghem/"
 
 # Colors for output
 GREEN='\033[0;32m'
