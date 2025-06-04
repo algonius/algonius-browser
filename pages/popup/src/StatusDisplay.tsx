@@ -1,5 +1,7 @@
 import type { McpError, McpHostStatus } from '@src/types';
 import React, { useEffect, useState } from 'react';
+import { InstallationGuide } from './InstallationGuide';
+import { McpErrorCode } from '@extension/shared';
 
 interface StatusDisplayProps {
   status: McpHostStatus;
@@ -48,6 +50,11 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({ status, loading, e
 
     return `${days}d ${hours}h ${minutes}m ${seconds}s`;
   };
+
+  // If MCP Host is not found, show installation guide instead of regular status
+  if (error?.code === McpErrorCode.HOST_NOT_FOUND) {
+    return <InstallationGuide onRetry={onRefresh} />;
+  }
 
   return (
     <div className="rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">

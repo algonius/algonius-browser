@@ -301,3 +301,109 @@ This represents a mature, production-ready browser automation system with enterp
 5. **Artifacts**: Chrome extension, Firefox extension, and Go binaries for all platforms
 
 The release system is now fully automated and production-ready, eliminating all manual version management tasks and ensuring consistent versioning across the entire project.
+
+### Browser Extension UX Enhancement (2025-06-04)
+**SMART INSTALLATION GUIDANCE SYSTEM COMPLETED** - First-Time User Experience
+
+#### Problem Solved
+- **Issue**: New users faced confusing "Start MCP Host" button when MCP Host wasn't installed
+- **User Experience Gap**: No clear guidance for first-time installation
+- **Technical Challenge**: HOST_NOT_FOUND errors required manual interpretation
+
+#### Comprehensive Solution Implemented ✅
+
+**1. Smart Error Detection System**
+- Modified `StatusDisplay` component to detect `McpErrorCode.HOST_NOT_FOUND`
+- Automatically switches to installation mode when MCP Host not detected
+- Eliminates confusion between "host not running" vs "host not installed"
+
+**2. Professional InstallationGuide Component**
+- **File**: `pages/popup/src/InstallationGuide.tsx`
+- **Features**:
+  - Platform-specific installation hints (Windows, macOS, Linux)
+  - Direct link to GitHub installation page
+  - Professional UI with clear call-to-action buttons
+  - "Check Again" functionality for post-installation verification
+  - Comprehensive status indicators and help text
+
+**3. Installation Utilities**
+- **File**: `pages/popup/src/utils/installation.ts`
+- **Functions**:
+  - `openInstallationPage()` - Opens GitHub installation page
+  - `detectPlatform()` - Automatic OS detection
+  - `getPlatformHints()` - Platform-specific guidance
+  - Cross-browser compatibility (Chrome APIs with fallbacks)
+
+**4. Enhanced Control Panel Logic**
+- Modified `ControlPanel` component to show "Install MCP Host" button
+- Smart button logic: Install vs Start vs Stop based on error state
+- Color-coded actions: Green for Install, Blue for Start, Red for Stop
+- Proper error prop handling and state management
+
+#### Technical Implementation Details
+- **Error Handling**: Integrated with existing `McpErrorCode` system
+- **UI/UX**: Consistent with existing Tailwind CSS design system
+- **TypeScript**: Full type safety with proper interface definitions
+- **Build System**: Successfully integrated with Vite build process
+- **Cross-Platform**: Automatic platform detection for targeted guidance
+
+#### User Flow Enhancement
+1. **First-Time User**: Sees "MCP Host Required" with installation guidance
+2. **Platform Detection**: Automatic OS-specific instructions
+3. **One-Click Install**: Direct link to GitHub installation page
+4. **Post-Install**: "Check Again" button to verify installation
+5. **Success State**: Normal status display and control panel
+
+#### Benefits Achieved
+- ✅ **Zero Confusion**: Clear distinction between "not installed" vs "not running"
+- ✅ **Professional UX**: Polished installation experience
+- ✅ **Platform Awareness**: OS-specific guidance reduces errors
+- ✅ **Self-Service**: Users can complete installation independently
+- ✅ **Consistent Design**: Matches existing extension UI perfectly
+- ✅ **Developer Friendly**: Clean separation of concerns and reusable utilities
+
+This enhancement transforms the first-time user experience from confusing error messages to a guided, professional installation process. The system now gracefully handles the transition from "extension installed" to "fully functional browser automation platform."
+
+### Version-Specific Installation URLs (2025-06-04)
+**VERSION-SPECIFIC INSTALLATION GUIDANCE ENHANCEMENT COMPLETED** - Accurate Documentation Links
+
+#### Problem Solved
+- **Issue**: Installation guidance linked to main branch README, potentially showing newer/different instructions
+- **User Experience Gap**: Version mismatch between extension and documentation could cause confusion
+- **Technical Challenge**: Need dynamic URL generation based on current extension version
+
+#### Enhanced Solution Implemented ✅
+
+**1. Dynamic URL Generation**
+- **File**: `pages/popup/src/utils/installation.ts`
+- **Function**: `getVersionSpecificInstallationUrl()` - New utility for version-specific URLs
+- **Logic**: Uses `import.meta.env.PACKAGE_VERSION` to construct version-tagged GitHub URLs
+- **Format**: `https://github.com/algonius/algonius-browser/tree/v{version}?tab=readme-ov-file#-quick-start`
+- **Fallback**: Main branch if version unavailable
+
+**2. Improved Code Architecture**
+- Extracted URL generation logic into separate function for reusability
+- Enhanced type safety and documentation
+- Cleaner separation of concerns between URL generation and page opening
+- Better error handling and fallback mechanisms
+
+**3. Updated Installation Flow**
+- Modified `openInstallationPage()` to use new version-specific URL function
+- Updated anchor link from `#1-install-mcp-host` to `#-quick-start` for better GitHub navigation
+- Maintained cross-browser compatibility (Chrome extension API + fallback)
+
+#### Technical Implementation Benefits
+- ✅ **Version Accuracy**: Users see documentation that exactly matches their extension version
+- ✅ **Zero Confusion**: No version mismatches between extension and installation instructions
+- ✅ **Automatic Updates**: URLs automatically update with each release
+- ✅ **Robust Fallbacks**: Graceful degradation if version info unavailable
+- ✅ **Developer Friendly**: Clean, testable, and maintainable code structure
+- ✅ **Build Integration**: Successfully works with existing Vite/environment variable system
+
+#### Current Implementation Details
+- **Version**: 0.4.6 (from package.json)
+- **Generated URL**: `https://github.com/algonius/algonius-browser/tree/v0.4.6?tab=readme-ov-file#-quick-start`
+- **Environment Variable**: `import.meta.env.PACKAGE_VERSION` (injected by Vite build)
+- **Cross-Browser Support**: Chrome extension API with window.open fallback
+
+This enhancement ensures perfect alignment between the user's extension version and the installation documentation they receive, eliminating potential confusion from version mismatches and providing a more professional, reliable user experience.

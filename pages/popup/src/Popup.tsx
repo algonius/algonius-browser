@@ -20,11 +20,12 @@ export const Popup: React.FC = () => {
         onStartHost={startMcpHost}
         onStopHost={stopMcpHost}
         loading={loading}
+        error={error}
       />
 
       <footer className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
         <p className="mb-2">
-          Version {process.env.PACKAGE_VERSION} |{' '}
+          Version {import.meta.env.PACKAGE_VERSION} |{' '}
           <a
             href="https://github.com/algonius/algonius-browser/issues"
             target="_blank"
