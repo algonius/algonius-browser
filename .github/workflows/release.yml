@@ -63,6 +63,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -77,8 +79,27 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Update version in package.json files
+        run: |
+          VERSION=${{ needs.prepare-release.outputs.version }}
+          echo "Updating version to $VERSION"
+          bash update_version.sh $VERSION
+          
+          # Verify version was updated
+          echo "Verifying version updates:"
+          echo "Root package.json version: $(jq -r '.version' package.json)"
+          echo "Chrome extension package.json version: $(jq -r '.version' chrome-extension/package.json)"
+
       - name: Build ${{ matrix.name }}
-        run: ${{ matrix.build_cmd }}
+        run: |
+          VERSION=${{ needs.prepare-release.outputs.version }}
+          echo "Building ${{ matrix.name }} with version $VERSION"
+          
+          # Verify the version is available
+          echo "Package.json version: $(jq -r '.version' package.json)"
+          
+          # Run the build
+          ${{ matrix.build_cmd }}
 
       - name: Create zip package
         run: ${{ matrix.zip_cmd }}
@@ -93,6 +114,19 @@ jobs:
             packages/zipper/dist/*.zip
             packages/zipper/dist/*.xpi
           retention-days: 30
+
+      - name: Upload updated source files (first matrix job only)
+        if: matrix.name == 'Chrome Extension'
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated-source-files
+          path: |
+            package.json
+            chrome-extension/package.json
+            pages/*/package.json
+            packages/*/package.json
+            mcp-host-go/pkg/handlers/version.go
+          retention-days: 1
 
   build-go-host:
     name: Build Go MCP Host
@@ -152,6 +186,8 @@ jobs:
           BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
           GIT_COMMIT=$(git rev-parse --short HEAD)
           
+          echo "Building Go MCP Host ${{ matrix.name }} with version $VERSION"
+          
           go build \
             -trimpath \
             -ldflags "-s -w -X 'github.com/algonius/algonius-browser/mcp-host-go/pkg/handlers.Version=$VERSION' -X 'github.com/algonius/algonius-browser/mcp-host-go/pkg/handlers.BuildTime=$BUILD_TIME' -X 'github.com/algonius/algonius-browser/mcp-host-go/pkg/handlers.GitCommit=$GIT_COMMIT'" \
@@ -176,34 +212,37 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.12.0'
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: '9.15.1'
+          fetch-depth: 0
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Update version in package.json files
+      - name: Download updated source files
+        uses: actions/download-artifact@v4
+        with:
+          name: updated-source-files
+          path: ./
+
+      - name: Commit and push version changes
         run: |
           VERSION=${{ needs.prepare-release.outputs.version }}
-          bash update_version.sh $VERSION
           
-          # Commit version changes
-          git add .
-          git commit -m "chore: bump version to $VERSION" || echo "No changes to commit"
+          # Check if there are any changes to commit
+          if git diff --quiet; then
+            echo "No version changes to commit"
+          else
+            echo "Committing version changes for $VERSION"
+            git add .
+            git commit -m "chore: bump version to $VERSION"
+            git push origin HEAD
+          fi
 
       - name: Create and push tag
         run: |
           TAG=${{ needs.prepare-release.outputs.tag }}
+          echo "Creating and pushing tag: $TAG"
           git tag $TAG
           git push origin $TAG
 
@@ -219,7 +258,7 @@ jobs:
           
           # Debug: List all downloaded artifacts
           echo "=== All artifacts structure ==="
-          find artifacts -type f -name "*.zip" | head -20
+          find artifacts -type f -name "*.zip" -o -name "*.xpi" -o -name "mcp-host-*" | head -20
           
           # Rename Chrome extension
           CHROME_ZIP=$(find artifacts/chrome-extension -name "*.zip" | head -1)
@@ -236,7 +275,7 @@ jobs:
             cp "$FIREFOX_ZIP" release-assets/algonius-browser-firefox-v$VERSION.xpi
             echo "Copied Firefox extension: $FIREFOX_ZIP"
           else
-            echo "Warning: Firefox extension zip not found"
+            echo "Warning: Firefox extension xpi not found"
           fi
           
           # Copy Go binaries
@@ -301,7 +340,3 @@ jobs:
             release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push version commit
-        run: |
-          git push origin master || echo "Failed to push to master, but release was created successfully"

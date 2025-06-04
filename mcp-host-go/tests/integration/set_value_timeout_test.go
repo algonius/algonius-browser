@@ -36,9 +36,7 @@ func TestSetValueToolTimeoutSupport(t *testing.T) {
 		return map[string]interface{}{
 			"success":       true,
 			"message":       "Successfully set value",
-			"target":        params["target"],
-			"target_type":   params["target_type"],
-			"element_index": 0,
+			"element_index": params["element_index"],
 			"element_type":  "text-input",
 			"input_method":  "type",
 			"actual_value":  params["value"],
@@ -89,9 +87,9 @@ func TestSetValueToolTimeoutSupport(t *testing.T) {
 		mediumText := strings.Repeat("This is a test sentence. ", 20) // ~500 characters
 
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":  0,
-			"value":   mediumText,
-			"timeout": "auto",
+			"element_index": 0,
+			"value":         mediumText,
+			"timeout":       "auto",
 		})
 		require.NoError(t, err)
 		assert.False(t, result.IsError)
@@ -113,9 +111,9 @@ func TestSetValueToolTimeoutSupport(t *testing.T) {
 		longText := strings.Repeat("Long content for testing progressive input strategy. ", 50) // ~2500 characters
 
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":  0,
-			"value":   longText,
-			"timeout": "auto",
+			"element_index": 0,
+			"value":         longText,
+			"timeout":       "auto",
 		})
 		require.NoError(t, err)
 		assert.False(t, result.IsError)
@@ -137,9 +135,9 @@ func TestSetValueToolTimeoutSupport(t *testing.T) {
 		testText := "Test with explicit timeout"
 
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":  0,
-			"value":   testText,
-			"timeout": "30000", // 30 seconds
+			"element_index": 0,
+			"value":         testText,
+			"timeout":       "30000", // 30 seconds
 		})
 		require.NoError(t, err)
 		assert.False(t, result.IsError)
@@ -161,9 +159,9 @@ func TestSetValueToolTimeoutSupport(t *testing.T) {
 		veryLongText := strings.Repeat("Very long content ", 200) // ~3600 characters
 
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":  0,
-			"value":   veryLongText,
-			"timeout": "300000", // 5 minutes - maximum allowed
+			"element_index": 0,
+			"value":         veryLongText,
+			"timeout":       "300000", // 5 minutes - maximum allowed
 		})
 		require.NoError(t, err)
 		assert.False(t, result.IsError)
@@ -225,9 +223,9 @@ func TestSetValueToolTimeoutValidation(t *testing.T) {
 	// Test timeout validation - too low
 	t.Run("timeout too low", func(t *testing.T) {
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":  0,
-			"value":   "test",
-			"timeout": "3000", // Too low - should be rejected (below new minimum of 5000)
+			"element_index": 0,
+			"value":         "test",
+			"timeout":       "3000", // Too low - should be rejected (below new minimum of 5000)
 		})
 		require.NoError(t, err)
 		assert.True(t, result.IsError)
@@ -238,9 +236,9 @@ func TestSetValueToolTimeoutValidation(t *testing.T) {
 	// Test timeout validation - too high
 	t.Run("timeout too high", func(t *testing.T) {
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":  0,
-			"value":   "test",
-			"timeout": "700000", // Too high - should be rejected (above new maximum of 600000)
+			"element_index": 0,
+			"value":         "test",
+			"timeout":       "700000", // Too high - should be rejected (above new maximum of 600000)
 		})
 		require.NoError(t, err)
 		assert.True(t, result.IsError)
@@ -251,9 +249,9 @@ func TestSetValueToolTimeoutValidation(t *testing.T) {
 	// Test invalid timeout format
 	t.Run("invalid timeout format", func(t *testing.T) {
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":  0,
-			"value":   "test",
-			"timeout": "invalid", // Invalid format
+			"element_index": 0,
+			"value":         "test",
+			"timeout":       "invalid", // Invalid format
 		})
 		require.NoError(t, err)
 		assert.True(t, result.IsError)
@@ -267,9 +265,9 @@ func TestSetValueToolTimeoutValidation(t *testing.T) {
 
 		for _, timeout := range testCases {
 			result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-				"target":  0,
-				"value":   "test",
-				"timeout": timeout,
+				"element_index": 0,
+				"value":         "test",
+				"timeout":       timeout,
 			})
 			require.NoError(t, err)
 			assert.False(t, result.IsError, "Timeout %s should be valid", timeout)
@@ -362,9 +360,9 @@ func TestSetValueToolProgressiveTypingScenarios(t *testing.T) {
 			testText := strings.Repeat("A", tc.textLength)
 
 			result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-				"target":  0,
-				"value":   testText,
-				"timeout": "auto",
+				"element_index": 0,
+				"value":         testText,
+				"timeout":       "auto",
 			})
 			require.NoError(t, err)
 

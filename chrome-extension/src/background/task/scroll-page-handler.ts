@@ -8,6 +8,7 @@
 import type BrowserContext from '../browser/context';
 import { createLogger } from '../log';
 import type { RpcHandler, RpcRequest, RpcResponse } from '../mcp/host-manager';
+import { findElementByHighlightIndex } from './dom-utils';
 
 /**
  * Handler for the 'scroll_page' RPC method
@@ -170,10 +171,10 @@ export class ScrollPageHandler {
    * @param elementIndex The index of the element to scroll to
    */
   private async scrollToElement(page: any, elementIndex: number): Promise<void> {
-    // Get the DOM element by index
-    const domElement = page.getDomElementByIndex(elementIndex);
+    // Get the DOM element by highlightIndex using shared utility
+    const domElement = await findElementByHighlightIndex(page, elementIndex);
     if (!domElement) {
-      throw new Error(`Element with index ${elementIndex} not found`);
+      throw new Error(`Element with highlightIndex ${elementIndex} not found`);
     }
 
     // Locate the element and scroll it into view

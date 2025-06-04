@@ -32,9 +32,7 @@ func TestSetValueToolBasicFunctionality(t *testing.T) {
 		return map[string]interface{}{
 			"success":       true,
 			"message":       "Successfully set value",
-			"target":        params["target"],
-			"target_type":   params["target_type"],
-			"element_index": 0,
+			"element_index": params["element_index"],
 			"element_type":  "text-input",
 			"input_method":  "type",
 			"actual_value":  params["value"],
@@ -87,9 +85,8 @@ func TestSetValueToolBasicFunctionality(t *testing.T) {
 
 		// Execute set_value tool
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":      0,
-			"target_type": "index",
-			"value":       "Hello World",
+			"element_index": 0,
+			"value":         "Hello World",
 			"options": map[string]interface{}{
 				"clear_first": true,
 				"wait_after":  1.0,
@@ -105,8 +102,7 @@ func TestSetValueToolBasicFunctionality(t *testing.T) {
 		require.Len(t, capturedSetValueRequests, 1, "Should have captured exactly one set_value request")
 
 		capturedParams := capturedSetValueRequests[0]
-		assert.Equal(t, float64(0), capturedParams["target"])
-		assert.Equal(t, "index", capturedParams["target_type"])
+		assert.Equal(t, float64(0), capturedParams["element_index"])
 		assert.Equal(t, "Hello World", capturedParams["value"])
 
 		options := capturedParams["options"].(map[string]interface{})
@@ -167,20 +163,20 @@ func TestSetValueToolParameterValidation(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:        "missing_target",
+			name:        "missing_element_index",
 			args:        map[string]interface{}{"value": "test"},
 			expectError: true,
 		},
 		{
 			name:        "missing_value",
-			args:        map[string]interface{}{"target": 0},
+			args:        map[string]interface{}{"element_index": 0},
 			expectError: true,
 		},
 		{
 			name: "invalid_wait_after_negative",
 			args: map[string]interface{}{
-				"target": 0,
-				"value":  "test",
+				"element_index": 0,
+				"value":         "test",
 				"options": map[string]interface{}{
 					"wait_after": -1,
 				},
@@ -190,8 +186,8 @@ func TestSetValueToolParameterValidation(t *testing.T) {
 		{
 			name: "invalid_wait_after_too_large",
 			args: map[string]interface{}{
-				"target": 0,
-				"value":  "test",
+				"element_index": 0,
+				"value":         "test",
 				"options": map[string]interface{}{
 					"wait_after": 35,
 				},
@@ -201,9 +197,8 @@ func TestSetValueToolParameterValidation(t *testing.T) {
 		{
 			name: "valid_parameters",
 			args: map[string]interface{}{
-				"target":      0,
-				"target_type": "index",
-				"value":       "test value",
+				"element_index": 0,
+				"value":         "test value",
 				"options": map[string]interface{}{
 					"clear_first": true,
 					"submit":      false,
@@ -251,11 +246,11 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 	testEnv.GetNativeMsg().RegisterRpcHandler("set_value", func(params map[string]interface{}) (interface{}, error) {
 		capturedRequests = append(capturedRequests, params)
 
-		target := params["target"]
+		elementIndex := params["element_index"]
 		value := params["value"]
 
-		// Simulate different responses based on target
-		switch target {
+		// Simulate different responses based on element_index
+		switch elementIndex {
 		case float64(0): // Text input
 			return map[string]interface{}{
 				"success":       true,
@@ -285,7 +280,7 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 				"success":       true,
 				"element_type":  "unknown",
 				"actual_value":  value,
-				"element_index": target,
+				"element_index": elementIndex,
 			}, nil
 		}
 	})
@@ -351,9 +346,8 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 			capturedRequests = nil
 
 			result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-				"target":      tc.target,
-				"target_type": "index",
-				"value":       tc.value,
+				"element_index": tc.target,
+				"value":         tc.value,
 			})
 
 			require.NoError(t, err)
@@ -364,7 +358,7 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 
 			// Verify RPC call was made
 			require.Len(t, capturedRequests, 1, "Should have captured the request")
-			assert.Equal(t, float64(tc.target), capturedRequests[0]["target"])
+			assert.Equal(t, float64(tc.target), capturedRequests[0]["element_index"])
 			assert.Equal(t, tc.value, capturedRequests[0]["value"])
 
 			t.Logf("Successfully tested %s element type", tc.name)
@@ -372,7 +366,7 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 	}
 }
 
-func TestSetValueToolWithDescription(t *testing.T) {
+func TestSetValueToolWithOptions(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -387,15 +381,13 @@ func TestSetValueToolWithDescription(t *testing.T) {
 	// Track captured requests
 	var capturedRequests []map[string]interface{}
 
-	// Register RPC handler for description-based targeting
+	// Register RPC handler for options testing
 	testEnv.GetNativeMsg().RegisterRpcHandler("set_value", func(params map[string]interface{}) (interface{}, error) {
 		capturedRequests = append(capturedRequests, params)
 
 		return map[string]interface{}{
 			"success":       true,
-			"target":        params["target"],
-			"target_type":   params["target_type"],
-			"element_index": 0,
+			"element_index": params["element_index"],
 			"element_type":  "text-input",
 			"input_method":  "type",
 			"actual_value":  params["value"],
@@ -405,6 +397,7 @@ func TestSetValueToolWithDescription(t *testing.T) {
 				"id":          "name-field",
 				"type":        "text",
 			},
+			"options_used": params["options"],
 		}, nil
 	})
 
@@ -432,15 +425,19 @@ func TestSetValueToolWithDescription(t *testing.T) {
 		return
 	}
 
-	// Test description-based targeting
-	t.Run("description_targeting", func(t *testing.T) {
+	// Test options handling
+	t.Run("options_handling", func(t *testing.T) {
 		// Clear previous requests
 		capturedRequests = nil
 
 		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
-			"target":      "Enter your name",
-			"target_type": "description",
-			"value":       "John Doe",
+			"element_index": 5,
+			"value":         "John Doe",
+			"options": map[string]interface{}{
+				"clear_first": false,
+				"submit":      true,
+				"wait_after":  2.5,
+			},
 		})
 
 		require.NoError(t, err)
@@ -451,11 +448,16 @@ func TestSetValueToolWithDescription(t *testing.T) {
 
 		// Verify RPC call was made with correct parameters
 		require.Len(t, capturedRequests, 1, "Should have captured the request")
-		assert.Equal(t, "Enter your name", capturedRequests[0]["target"])
-		assert.Equal(t, "description", capturedRequests[0]["target_type"])
+		assert.Equal(t, float64(5), capturedRequests[0]["element_index"])
 		assert.Equal(t, "John Doe", capturedRequests[0]["value"])
 
-		t.Log("Successfully tested description-based targeting")
+		// Verify options were passed correctly
+		options := capturedRequests[0]["options"].(map[string]interface{})
+		assert.Equal(t, false, options["clear_first"])
+		assert.Equal(t, true, options["submit"])
+		assert.Equal(t, 2.5, options["wait_after"])
+
+		t.Log("Successfully tested options handling")
 	})
 }
 

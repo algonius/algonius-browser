@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Static Test Page for DOM Index Consistency</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .button-group {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input {
+            margin: 5px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 3px;
+        }
+        a {
+            color: #007bff;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Static Test Page for DOM Index Testing</h1>
+        <p>This page contains various clickable elements to test DOM index consistency between get_dom_extra_elements and click_element tools.</p>
+
+        <div class="button-group">
+            <h2>Button Group 1</h2>
+            <button id="btn-1" onclick="handleClick('Button 1')">Button 1</button>
+            <button id="btn-2" onclick="handleClick('Button 2')">Button 2</button>
+            <button id="btn-3" onclick="handleClick('Button 3')">Button 3</button>
+            <button id="btn-4" onclick="handleClick('Button 4')">Button 4</button>
+            <button id="btn-5" onclick="handleClick('Button 5')">Button 5</button>
+        </div>
+
+        <div class="button-group">
+            <h2>Input Fields</h2>
+            <input type="text" id="input-1" placeholder="Text Input 1" />
+            <input type="email" id="input-2" placeholder="Email Input" />
+            <input type="password" id="input-3" placeholder="Password Input" />
+            <input type="number" id="input-4" placeholder="Number Input" />
+        </div>
+
+        <div class="button-group">
+            <h2>Links</h2>
+            <a href="#section1" id="link-1">Link to Section 1</a>
+            <a href="#section2" id="link-2">Link to Section 2</a>
+            <a href="#section3" id="link-3">Link to Section 3</a>
+        </div>
+
+        <div class="button-group">
+            <h2>More Buttons</h2>
+            <button id="btn-6" onclick="handleClick('Button 6')">Button 6</button>
+            <button id="btn-7" onclick="handleClick('Button 7')">Button 7</button>
+            <button id="btn-8" onclick="handleClick('Button 8')">Button 8</button>
+            <button id="btn-9" onclick="handleClick('Button 9')">Button 9</button>
+            <button id="btn-10" onclick="handleClick('Button 10')">Button 10</button>
+        </div>
+
+        <div class="button-group">
+            <h2>Form Elements</h2>
+            <select id="select-1">
+                <option value="">Select an option</option>
+                <option value="option1">Option 1</option>
+                <option value="option2">Option 2</option>
+                <option value="option3">Option 3</option>
+            </select>
+            <textarea id="textarea-1" placeholder="Enter your message here..." rows="3" cols="40"></textarea>
+        </div>
+
+        <div class="result" id="result">
+            <h3>Click Results:</h3>
+            <p id="result-text">No clicks yet. Click any button to see the result.</p>
+        </div>
+
+        <div id="section1">
+            <h2>Section 1</h2>
+            <p>This is section 1 content. Contains some text and more elements.</p>
+            <button id="section1-btn" onclick="handleClick('Section 1 Button')">Section 1 Button</button>
+        </div>
+
+        <div id="section2">
+            <h2>Section 2</h2>
+            <p>This is section 2 content. Also contains interactive elements.</p>
+            <button id="section2-btn" onclick="handleClick('Section 2 Button')">Section 2 Button</button>
+        </div>
+
+        <div id="section3">
+            <h2>Section 3</h2>
+            <p>This is section 3 content. Final section with elements.</p>
+            <button id="section3-btn" onclick="handleClick('Section 3 Button')">Section 3 Button</button>
+        </div>
+    </div>
+
+    <script>
+        function handleClick(buttonName) {
+            const resultText = document.getElementById('result-text');
+            const timestamp = new Date().toLocaleTimeString();
+            resultText.textContent = `${buttonName} clicked at ${timestamp}`;
+            console.log(`${buttonName} clicked at ${timestamp}`);
+        }
+
+        // Add some console logging for debugging
+        console.log('Static test page loaded successfully');
+        
+        // Count interactive elements for reference
+        const buttons = document.querySelectorAll('button').length;
+        const inputs = document.querySelectorAll('input').length;
+        const links = document.querySelectorAll('a').length;
+        const selects = document.querySelectorAll('select').length;
+        const textareas = document.querySelectorAll('textarea').length;
+        
+        console.log(`Interactive elements count: ${buttons} buttons, ${inputs} inputs, ${links} links, ${selects} selects, ${textareas} textareas`);
+        console.log(`Total interactive elements: ${buttons + inputs + links + selects + textareas}`);
+    </script>
+</body>
+</html>

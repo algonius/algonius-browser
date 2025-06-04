@@ -4,13 +4,6 @@
 
 <h1 align="center">MCP Browser Automation</h1>
 
-<div align="center">
-
-[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/algonius/algonius-browser)
-[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/NN3ABHggMK)
-
-</div>
-
 ## 🌐 Overview
 
 Algonius Browser is an open-source MCP (Model Context Protocol) server that provides browser automation capabilities to external AI systems. It exposes a comprehensive set of browser control tools through the MCP protocol, enabling AI assistants and other tools to navigate websites, interact with DOM elements, and extract web content programmatically.

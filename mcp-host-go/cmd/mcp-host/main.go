@@ -300,8 +300,9 @@ func initContainer(startTime time.Time) (*Container, error) {
 	container.NavigateTool = navigateTool
 
 	scrollPageTool, err := tools.NewScrollPageTool(tools.ScrollPageConfig{
-		Logger:    toolLogger,
-		Messaging: container.Messaging,
+		Logger:      toolLogger,
+		Messaging:   container.Messaging,
+		DomStateRes: container.DomStateRes,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create scroll_page tool: %w", err)

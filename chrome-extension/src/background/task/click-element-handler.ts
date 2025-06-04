@@ -8,6 +8,8 @@
 import type BrowserContext from '../browser/context';
 import { createLogger } from '../log';
 import type { RpcHandler, RpcRequest, RpcResponse } from '../mcp/host-manager';
+import { findElementByHighlightIndex } from './dom-utils';
+import type { DOMElementNode } from '../dom/views';
 
 /**
  * Handler for the 'click_element' RPC method
@@ -153,21 +155,21 @@ export class ClickElementHandler {
   ): Promise<{
     elementInfo: any;
   }> {
-    // Get the DOM element by index
-    const domElement = page.getDomElementByIndex(elementIndex);
+    // Get the DOM element by highlightIndex using shared utility
+    const domElement = await findElementByHighlightIndex(page, elementIndex);
     if (!domElement) {
-      throw new Error(`Element with index ${elementIndex} not found in DOM state`);
+      throw new Error(`Element with highlightIndex ${elementIndex} not found in DOM state`);
     }
 
     // Extract element information for response
     const elementInfo = {
       tag_name: domElement.tagName,
-      text: domElement.text || domElement.value || '',
-      type: domElement.type,
-      role: domElement.role,
-      aria_label: domElement.ariaLabel,
-      class: domElement.class,
-      id: domElement.id,
+      text: domElement.getAllTextTillNextClickableElement() || domElement.attributes.value || '',
+      type: domElement.attributes.type,
+      role: domElement.attributes.role,
+      aria_label: domElement.attributes['aria-label'],
+      class: domElement.attributes.class,
+      id: domElement.attributes.id,
     };
 
     // Locate the element on the page

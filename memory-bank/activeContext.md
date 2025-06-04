@@ -1,102 +1,36 @@
 # Active Context
 
-## Current Focus
-**Project Status**: ✅ **COMPLETED** - Successfully implemented timeout and progressive typing support for set_value tool with comprehensive testing.
+## Current Work Focus
+已完成修复版本号显示问题的方案实施。成功将 `import.meta.env.PACKAGE_VERSION` 替换为直接导入 `package.json` 的方式。
 
-## Recent Major Changes (June 2025)
-- **Enhanced set_value Tool**: Added timeout parameter support with 'auto' and explicit millisecond values
-- **Progressive Typing**: Implemented intelligent text input strategy for long content
-- **Comprehensive Testing**: Added full test coverage for timeout and progressive typing scenarios
-- **Validation**: Enhanced parameter validation with proper error handling
-- **Integration**: Seamless integration with existing Chrome extension handlers
+## Recent Changes
+### Popup 版本号修复 (已完成)
+- **问题**: Popup 界面中版本号显示为 `undefined`，因为 `import.meta.env.PACKAGE_VERSION` 在当前构建环境中不可用
+- **解决方案**: 直接从 package.json 导入版本号
+  - 修改了 `pages/popup/src/Popup.tsx`：添加 `import packageJson from '../../../package.json'` 并使用 `packageJson.version`
+  - 修改了 `pages/popup/src/utils/installation.ts`：同样的修改模式
 
-## System Architecture (Post-Refactoring)
-```
-algonius-browser/
-├── mcp-host-go/           # Native messaging host (Go)
-├── chrome-extension/      # Background service worker + utils
-├── pages/
-│   ├── popup/            # MCP host control interface
-│   └── content/          # DOM interaction scripts
-└── packages/             # Shared utilities and configs
-```
-
-## Core Components
-
-### MCP Host (Go)
-- **Purpose**: Native messaging bridge between Chrome and MCP protocol
-- **Location**: `mcp-host-go/`
-- **Status**: Fully functional, all tests passing
-- **Key Features**: Tool routing, error handling, lifecycle management
-
-### Chrome Extension
-- **Background Script**: Clean service worker with MCP tool handlers
-- **Popup Interface**: Simple control panel for MCP host start/stop
-- **Content Scripts**: DOM tree building and interaction utilities
-- **Status**: Streamlined, LLM-free, focused on browser automation
-
-### Available MCP Tools
-1. `navigate_to` - URL navigation with timeout
-2. `get_browser_state` - Current browser/tab state
-3. `get_dom_state` - DOM structure extraction
-4. `click_element` - Element clicking by selector/text
-5. `set_value` - **Enhanced** Input field value setting with timeout and progressive typing
-6. `scroll_page` - Page scrolling
-7. `manage_tabs` - Tab creation/switching/closing
-8. `get_dom_extra_elements` - Advanced DOM element pagination and filtering
-
-## Development Patterns
-
-### Error Handling
-- Structured error types with codes and messages
-- Graceful degradation for missing elements
-- Timeout handling for async operations
-
-### Testing Strategy
-- Integration tests for all MCP tools
-- Chrome extension lifecycle testing
-- DOM interaction validation
-
-### Code Organization
-- TypeScript throughout for type safety
-- Modular handler pattern for MCP tools
-- Clean separation of concerns
-
-## Project Status
-- **Build**: ✅ All packages build successfully
-- **Tests**: ✅ All integration tests passing (including new timeout tests)
-- **Functionality**: ✅ All MCP tools working correctly with enhanced features
-- **Architecture**: ✅ Clean, focused, maintainable
-- **set_value Enhancement**: ✅ Timeout support and progressive typing fully implemented
-
-## Implementation Details - set_value Enhancement
-
-### Timeout Support
-- **Auto timeout**: Intelligent calculation based on text length (base 5s + 50ms per character)
-- **Explicit timeout**: 2000ms to 300000ms (2s to 5m) range validation
-- **Default behavior**: Falls back to browser default when no timeout specified
-
-### Progressive Typing Strategy
-- **Short text** (<= 100 chars): Normal typing simulation
-- **Medium text** (101-500 chars): Chunked typing with pauses
-- **Long text** (> 500 chars): Progressive chunks with extended timeouts
-- **Adaptive chunking**: Dynamically adjusts chunk size based on text length
-
-### Testing Coverage
-- ✅ Basic timeout functionality with auto and explicit values
-- ✅ Parameter validation (too low, too high, invalid format)
-- ✅ Progressive typing scenarios for different text lengths
-- ✅ Integration with existing set_value test suite
-- ✅ All 41 integration tests passing
+### 技术验证
+- TypeScript 配置已支持 JSON 模块导入 (`resolveJsonModule: true`)
+- 构建测试通过，版本号正确嵌入到最终的 JavaScript 文件中
+- 全项目构建测试成功
 
 ## Next Steps
-- System is ready for production use with enhanced set_value capabilities
-- Future enhancements could include additional DOM interaction tools
-- Performance optimizations for large DOM trees
-- Enhanced debugging and error reporting tools
+1. 测试修复后的扩展是否在浏览器中正确显示版本号
+2. 检查其他可能使用 `import.meta.env.PACKAGE_VERSION` 的地方是否需要类似修复
 
-## Key Learning & Decisions
-- **Simplification Success**: Removing LLM features dramatically simplified the architecture
-- **MCP Focus**: Pure browser automation through MCP protocol is a clean, powerful approach
-- **Modular Design**: Handler pattern makes adding new tools straightforward
-- **Testing Investment**: Comprehensive integration tests provide confidence in functionality
+## Active Decisions and Considerations
+- **方案选择**: 选择了方案A（直接导入package.json）而非方案B（修复Vite配置），因为：
+  - 更简单直接，不涉及复杂的构建配置修改
+  - 减少对现有构建流程的影响
+  - 更可靠，不依赖环境变量传递
+
+## Important Patterns and Preferences
+- 项目使用 pnpm + Turbo 作为构建工具
+- 支持 JSON 模块导入的 TypeScript 配置
+- 使用相对路径导入 package.json (`../../../package.json`)
+
+## Learnings and Project Insights
+- 项目的构建环境可能不会自动注入 `PACKAGE_VERSION` 环境变量到 `import.meta.env`
+- TypeScript 的 `resolveJsonModule` 配置已启用，支持直接导入 JSON 文件
+- 构建系统会在 JavaScript 文件中正确嵌入版本信息

@@ -1,14 +1,17 @@
 import React from 'react';
-import type { McpHostOptions } from '@src/types';
+import type { McpHostOptions, McpError } from '@src/types';
+import { McpErrorCode } from '@extension/shared';
+import { openInstallationPage } from './utils/installation';
 
 interface ControlPanelProps {
   isConnected: boolean;
   onStartHost: (options: McpHostOptions) => Promise<boolean>;
   onStopHost?: () => Promise<boolean>;
   loading: boolean;
+  error?: McpError | null;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ isConnected, onStartHost, onStopHost, loading }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ isConnected, onStartHost, onStopHost, loading, error }) => {
   const handleStartClick = async () => {
     // Use default parameters
     const options: McpHostOptions = {
@@ -25,6 +28,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ isConnected, onStart
     }
   };
 
+  const handleInstallClick = () => {
+    openInstallationPage();
+  };
+
   return (
     <div className="mt-4 rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">
       <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">MCP Host Control</h2>
@@ -35,7 +42,31 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ isConnected, onStart
         </p>
 
         <div className="mt-6 flex justify-center space-x-2">
-          {!isConnected && (
+          {!isConnected && error?.code === McpErrorCode.HOST_NOT_FOUND && (
+            <button
+              className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handleInstallClick}
+              disabled={loading}>
+              <span className="flex items-center">
+                <svg
+                  className="-ml-1 mr-2 size-4"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                Install MCP Host
+              </span>
+            </button>
+          )}
+
+          {!isConnected && error?.code !== McpErrorCode.HOST_NOT_FOUND && (
             <button
               className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={handleStartClick}

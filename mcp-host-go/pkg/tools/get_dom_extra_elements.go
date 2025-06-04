@@ -11,6 +11,7 @@ import (
 )
 
 // GetDomExtraElementsTool implements the get_dom_extra_elements MCP tool
+// This tool provides paginated access to interactive elements in the current viewport
 type GetDomExtraElementsTool struct {
 	logger    logger.Logger
 	messaging types.Messaging
@@ -45,14 +46,15 @@ func (t *GetDomExtraElementsTool) GetName() string {
 
 // GetDescription returns the tool description
 func (t *GetDomExtraElementsTool) GetDescription() string {
-	return `Get additional DOM interactive elements beyond the overview with pagination and filtering options.
+	return `Get interactive elements in the current viewport with pagination and filtering options.
 
-This tool provides access to all interactive elements on the page with advanced options:
-• Pagination: Navigate through pages of elements
+This tool provides paginated access to interactive elements currently visible in the browser viewport:
+• Pagination: Navigate through pages of elements to manage context size
 • Filtering: Filter by element type (button, input, link, select, textarea, all)
-• Flexible access: Get specific ranges or pages of elements
+• Viewport-focused: Shows only elements in the current visible area
+• Context-efficient: Designed to avoid overwhelming AI context with too many elements
 
-Use this tool when the DOM state overview (browser://dom/state) indicates there are more than 20 interactive elements available.`
+Use this tool when the DOM state overview shows many elements and you need detailed access to specific elements in the current viewport. To see elements in other parts of the page, scroll first, then use this tool.`
 }
 
 // GetInputSchema returns the tool input schema

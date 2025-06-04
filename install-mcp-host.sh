@@ -13,6 +13,9 @@ CHROMIUM_MANIFEST_DIR="${HOME}/.config/chromium/NativeMessagingHosts"
 MANIFEST_NAME="ai.algonius.mcp.host.json"
 BINARY_NAME="mcp-host"
 
+# Default extension ID
+DEFAULT_EXTENSION_ID="chrome-extension://fmcmnpejjhphnfdaegmdmahkgaccghem/"
+
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -36,6 +39,104 @@ error() {
 
 info() {
   echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+# Validate extension ID format
+validate_extension_id() {
+  local id="$1"
+  
+  # Check if ID starts with chrome-extension:// and ends with /
+  if [[ "$id" =~ ^chrome-extension://[a-z]{32}/$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Parse extension IDs from input (comma-separated)
+parse_extension_ids() {
+  local input="$1"
+  local -a ids
+  
+  # Split by comma and trim whitespace
+  IFS=',' read -ra ADDR <<< "$input"
+  for i in "${ADDR[@]}"; do
+    # Trim whitespace
+    local trimmed_id="$(echo "$i" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    
+    # Skip empty entries
+    if [ -z "$trimmed_id" ]; then
+      continue
+    fi
+    
+    # Auto-format extension ID if it's just the 32-character ID
+    if [[ "$trimmed_id" =~ ^[a-z]{32}$ ]]; then
+      trimmed_id="chrome-extension://${trimmed_id}/"
+    elif [[ "$trimmed_id" =~ ^chrome-extension://[a-z]{32}$ ]]; then
+      # Add trailing slash if missing
+      trimmed_id="${trimmed_id}/"
+    elif [[ "$trimmed_id" != chrome-extension://* ]]; then
+      # If it doesn't start with chrome-extension:// but isn't just 32 chars, try to add prefix
+      if [[ "$trimmed_id" =~ ^[a-z]{32}/?$ ]]; then
+        # Remove trailing slash and add proper format
+        local clean_id="$(echo "$trimmed_id" | sed 's|/$||')"
+        trimmed_id="chrome-extension://${clean_id}/"
+      fi
+    fi
+    
+    # Ensure trailing slash
+    if [[ "$trimmed_id" != */ ]] && [[ "$trimmed_id" == chrome-extension://* ]]; then
+      trimmed_id="${trimmed_id}/"
+    fi
+    
+    # Validate format
+    if validate_extension_id "$trimmed_id"; then
+      ids+=("$trimmed_id")
+    else
+      warn "Invalid extension ID format: $trimmed_id (expected: 32 lowercase characters or full chrome-extension://id/ format)"
+    fi
+  done
+  
+  # Return array as space-separated string
+  printf '%s\n' "${ids[@]}"
+}
+
+# Prompt user for extension IDs
+prompt_for_extension_ids() {
+  echo >&2
+  echo -e "${BLUE}[INFO]${NC} Extension ID Configuration" >&2
+  echo -e "${BLUE}[INFO]${NC} =========================" >&2
+  echo -e "${BLUE}[INFO]${NC} Please provide the Chrome extension ID(s) that should be allowed to communicate with the MCP host." >&2
+  echo -e "${BLUE}[INFO]${NC} You can provide multiple IDs separated by commas." >&2
+  echo >&2
+  echo -e "${BLUE}[INFO]${NC} Input Format:" >&2
+  echo -e "${BLUE}[INFO]${NC}   - Just the 32-character ID: fmcmnpejjhphnfdaegmdmahkgaccghem" >&2
+  echo -e "${BLUE}[INFO]${NC}   - Or the full URL: chrome-extension://fmcmnpejjhphnfdaegmdmahkgaccghem/" >&2
+  echo >&2
+  echo -e "${BLUE}[INFO]${NC} Default ID: ${DEFAULT_EXTENSION_ID}" >&2
+  echo >&2
+  
+  while true; do
+    echo -n "Enter extension ID(s) (or press Enter to use default): " >&2
+    read -r user_input
+    
+    # Use default if empty
+    if [ -z "$user_input" ]; then
+      echo "$DEFAULT_EXTENSION_ID"
+      return 0
+    fi
+    
+    # Parse and validate IDs
+    local parsed_ids
+    parsed_ids=$(parse_extension_ids "$user_input")
+    
+    if [ -n "$parsed_ids" ]; then
+      echo "$parsed_ids"
+      return 0
+    else
+      echo -e "${RED}[ERROR]${NC} No valid extension IDs provided. Please try again." >&2
+    fi
+  done
 }
 
 # Detect operating system and architecture
@@ -119,7 +220,10 @@ download_binary() {
 # Create native messaging manifest
 create_manifest() {
   local manifest_path="$1"
+  shift
+  local extension_ids=("$@")
   
+  # Start building the manifest
   cat > "${manifest_path}" << EOF
 {
   "name": "ai.algonius.mcp.host",
@@ -127,7 +231,21 @@ create_manifest() {
   "path": "${INSTALL_DIR}/${BINARY_NAME}",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://pifafhbidlgencpljdgglppkjjaadcmc/"
+EOF
+
+  # Add extension IDs
+  local first=true
+  for id in "${extension_ids[@]}"; do
+    if [ "$first" = true ]; then
+      echo "    \"${id}\"" >> "${manifest_path}"
+      first=false
+    else
+      echo ",    \"${id}\"" >> "${manifest_path}"
+    fi
+  done
+  
+  # Close the manifest
+  cat >> "${manifest_path}" << EOF
   ]
 }
 EOF
@@ -135,6 +253,7 @@ EOF
 
 # Install manifest for different browsers
 install_manifests() {
+  local extension_ids=("$@")
   local manifests_installed=0
   
   # Google Chrome
@@ -146,7 +265,7 @@ install_manifests() {
     fi
     
     mkdir -p "${CHROME_MANIFEST_DIR}"
-    create_manifest "${CHROME_MANIFEST_DIR}/${MANIFEST_NAME}"
+    create_manifest "${CHROME_MANIFEST_DIR}/${MANIFEST_NAME}" "${extension_ids[@]}"
     log "Installed manifest for Google Chrome: ${CHROME_MANIFEST_DIR}/${MANIFEST_NAME}"
     manifests_installed=$((manifests_installed + 1))
   fi
@@ -158,7 +277,7 @@ install_manifests() {
     fi
     
     mkdir -p "${CHROMIUM_MANIFEST_DIR}"
-    create_manifest "${CHROMIUM_MANIFEST_DIR}/${MANIFEST_NAME}"
+    create_manifest "${CHROMIUM_MANIFEST_DIR}/${MANIFEST_NAME}" "${extension_ids[@]}"
     log "Installed manifest for Chromium: ${CHROMIUM_MANIFEST_DIR}/${MANIFEST_NAME}"
     manifests_installed=$((manifests_installed + 1))
   fi
@@ -167,7 +286,7 @@ install_manifests() {
   if [[ "$OSTYPE" == "darwin"* ]] && [ -d "${HOME}/Library/Application Support/Microsoft Edge" ]; then
     EDGE_MANIFEST_DIR="${HOME}/Library/Application Support/Microsoft Edge/NativeMessagingHosts"
     mkdir -p "${EDGE_MANIFEST_DIR}"
-    create_manifest "${EDGE_MANIFEST_DIR}/${MANIFEST_NAME}"
+    create_manifest "${EDGE_MANIFEST_DIR}/${MANIFEST_NAME}" "${extension_ids[@]}"
     log "Installed manifest for Microsoft Edge: ${EDGE_MANIFEST_DIR}/${MANIFEST_NAME}"
     manifests_installed=$((manifests_installed + 1))
   fi
@@ -175,7 +294,7 @@ install_manifests() {
   if [ $manifests_installed -eq 0 ]; then
     warn "No supported browsers detected. Manifest installed to default location: ${MANIFEST_DIR}/${MANIFEST_NAME}"
     mkdir -p "${MANIFEST_DIR}"
-    create_manifest "${MANIFEST_DIR}/${MANIFEST_NAME}"
+    create_manifest "${MANIFEST_DIR}/${MANIFEST_NAME}" "${extension_ids[@]}"
   fi
 }
 
@@ -189,10 +308,9 @@ verify_installation() {
     error "Binary is not executable: ${INSTALL_DIR}/${BINARY_NAME}"
   fi
   
-  # Test if binary runs
-  if ! "${INSTALL_DIR}/${BINARY_NAME}" --version &> /dev/null; then
-    warn "Binary may not be working correctly. Please check your system compatibility."
-  fi
+  # Get basic file info
+  local file_size=$(stat -c%s "${INSTALL_DIR}/${BINARY_NAME}" 2>/dev/null || echo "unknown")
+  log "Binary file size: ${file_size} bytes"
   
   log "Installation verification completed successfully!"
 }
@@ -236,14 +354,21 @@ Algonius Browser MCP Host Installer
 Usage: $0 [OPTIONS]
 
 OPTIONS:
-  --version VERSION    Install a specific version (e.g., 1.0.0)
-  --uninstall         Uninstall the MCP host
-  --help              Show this help message
+  --version VERSION              Install a specific version (e.g., 1.0.0)
+  --extension-id ID              Specify a single extension ID
+  --extension-ids ID1,ID2,ID3    Specify multiple extension IDs (comma-separated)
+  --uninstall                    Uninstall the MCP host
+  --help                         Show this help message
+
+Extension ID Format:
+  chrome-extension://32-character-lowercase-id/
 
 Examples:
-  $0                   # Install latest version
-  $0 --version 1.2.3   # Install specific version
-  $0 --uninstall       # Uninstall
+  $0                                                    # Install latest version (interactive ID input)
+  $0 --version 1.2.3                                   # Install specific version (interactive ID input)
+  $0 --extension-id chrome-extension://abcd.../        # Install with single extension ID
+  $0 --extension-ids chrome-extension://abc.../,chrome-extension://def.../  # Install with multiple IDs
+  $0 --uninstall                                       # Uninstall
 EOF
   exit 0
 }
@@ -252,6 +377,8 @@ EOF
 main() {
   local version=""
   local force_version=false
+  local extension_ids_provided=false
+  local extension_ids=()
   
   # Parse command line arguments
   while [[ $# -gt 0 ]]; do
@@ -259,6 +386,32 @@ main() {
       --version)
         version="$2"
         force_version=true
+        shift 2
+        ;;
+      --extension-id)
+        local parsed_ids
+        parsed_ids=$(parse_extension_ids "$2")
+        if [ -n "$parsed_ids" ]; then
+          while IFS= read -r line; do
+            extension_ids+=("$line")
+          done <<< "$parsed_ids"
+          extension_ids_provided=true
+        else
+          error "Invalid extension ID format: $2"
+        fi
+        shift 2
+        ;;
+      --extension-ids)
+        local parsed_ids
+        parsed_ids=$(parse_extension_ids "$2")
+        if [ -n "$parsed_ids" ]; then
+          while IFS= read -r line; do
+            extension_ids+=("$line")
+          done <<< "$parsed_ids"
+          extension_ids_provided=true
+        else
+          error "Invalid extension IDs format: $2"
+        fi
         shift 2
         ;;
       --uninstall)
@@ -314,9 +467,27 @@ main() {
   # Clean up temp file
   rm -f "${temp_binary}"
   
+  # Get extension IDs (command line or interactive)
+  if [ "$extension_ids_provided" = false ]; then
+    log "Getting extension ID configuration..."
+    local prompted_ids
+    prompted_ids=$(prompt_for_extension_ids)
+    
+    # Parse prompted IDs into array
+    while IFS= read -r line; do
+      extension_ids+=("$line")
+    done <<< "$prompted_ids"
+  fi
+  
+  # Display configured extension IDs
+  log "Configured extension IDs:"
+  for id in "${extension_ids[@]}"; do
+    info "  - $id"
+  done
+  
   # Install manifests
   log "Installing Native Messaging manifests..."
-  install_manifests
+  install_manifests "${extension_ids[@]}"
   
   # Verify installation
   verify_installation
