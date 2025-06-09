@@ -49,8 +49,15 @@ Algonius Browser is an open-source MCP (Model Context Protocol) server that prov
 ### 1. Install MCP Host
 
 **One-Click Installation (Recommended)**:
+
+**Linux/macOS**:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/algonius/algonius-browser/master/install-mcp-host.sh | bash
+```
+
+**Windows (PowerShell)**:
+```powershell
+iwr -useb https://raw.githubusercontent.com/algonius/algonius-browser/master/install-mcp-host.ps1 | iex
 ```
 
 **Manual Installation**:

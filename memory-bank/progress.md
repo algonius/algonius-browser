@@ -426,3 +426,123 @@ This enhancement transforms the first-time user experience from confusing error 
 - **Cross-Browser Support**: Chrome extension API with window.open fallback
 
 This enhancement ensures perfect alignment between the user's extension version and the installation documentation they receive, eliminating potential confusion from version mismatches and providing a more professional, reliable user experience.
+
+### Windows PowerShell Installation Script (2025-06-09)
+**CROSS-PLATFORM INSTALLATION COMPLETED** - Full Windows Support Added
+
+#### Problem Solved
+- **Issue**: Only Linux/macOS shell script available for MCP Host installation
+- **Windows Gap**: Windows users had to perform complex manual installation
+- **User Experience**: Need one-click installation similar to Linux/macOS
+
+#### PowerShell Installation Script Implementation ✅
+
+**1. Complete PowerShell Installer**
+- **File**: `install-mcp-host.ps1` - Professional Windows installer script
+- **Features**:
+  - One-click installation via `iwr -useb URL | iex` command
+  - Automatic latest version detection from GitHub releases
+  - Multi-browser support (Chrome, Edge, Chromium)
+  - Interactive extension ID configuration with validation
+  - Command-line parameter support for automation
+  - Built-in uninstallation functionality
+  - Professional error handling and user feedback
+
+**2. Extension ID Management**
+- **Smart Validation**: Automatic format validation and correction
+- **Multiple Format Support**:
+  - Full URLs: `chrome-extension://abc123.../`
+  - 32-character IDs: `abc123...` (auto-formatted)
+  - Multiple IDs: Comma-separated list support
+- **Interactive Mode**: User-friendly prompts with format examples
+- **Command Line Support**: `-ExtensionId` and `-ExtensionIds` parameters
+
+**3. Multi-Browser Native Messaging Support**
+- **Automatic Detection**: Scans for Chrome, Edge, and Chromium installations
+- **Manifest Installation**: Creates native messaging manifests for all detected browsers
+- **Directory Structure**:
+  - Chrome: `%LOCALAPPDATA%\Google\Chrome\User Data\NativeMessagingHosts`
+  - Edge: `%LOCALAPPDATA%\Microsoft\Edge\User Data\NativeMessagingHosts`
+  - Chromium: `%LOCALAPPDATA%\Chromium\User Data\NativeMessagingHosts`
+
+**4. Platform-Specific Features**
+- **Windows Architecture Detection**: Automatic x86/x64 binary selection
+- **PowerShell Execution Policy Handling**: Clear instructions for policy issues
+- **Windows Defender Considerations**: Guidance for antivirus software
+- **User Directory Installation**: No administrator privileges required
+
+#### Command Line Interface ✅
+```powershell
+# Basic installation with interactive setup
+.\install-mcp-host.ps1
+
+# Install specific version
+.\install-mcp-host.ps1 -Version "1.2.3"
+
+# Install with single extension ID
+.\install-mcp-host.ps1 -ExtensionId "chrome-extension://abc123.../"
+
+# Install with multiple extension IDs
+.\install-mcp-host.ps1 -ExtensionIds "id1,id2,id3"
+
+# Uninstall
+.\install-mcp-host.ps1 -Uninstall
+
+# Show help
+.\install-mcp-host.ps1 -Help
+```
+
+#### Documentation Enhancement ✅
+
+**1. README Update**
+- **Enhanced Quick Start**: Added Windows PowerShell installation option
+- **Side-by-Side Commands**: Linux/macOS and Windows installation commands
+- **Consistent Formatting**: Professional presentation across platforms
+
+**2. Windows Installation Guide**
+- **File**: `docs/windows-installation.md` - Comprehensive Windows-specific documentation
+- **Content**:
+  - Detailed prerequisites and system requirements
+  - Multiple installation methods (one-click and manual)
+  - PowerShell script options and parameters
+  - Troubleshooting guide for common Windows issues
+  - Security considerations and execution policy guidance
+  - Manual uninstallation procedures
+  - Platform-specific directory locations
+
+#### Technical Implementation Details
+- **File Size**: 15KB PowerShell script with comprehensive functionality
+- **Error Handling**: Professional error messages with colored output
+- **Logging System**: Detailed progress logging with timestamps
+- **Parameter Validation**: Robust input validation and sanitization
+- **HTTP/HTTPS Support**: Secure binary downloads from GitHub releases
+- **File Verification**: Download completion verification and file size checking
+
+#### Installation Process Flow
+1. **Platform Detection**: Automatic Windows architecture detection
+2. **Version Resolution**: Latest version fetch or user-specified version
+3. **Directory Creation**: User-scoped installation directory setup
+4. **Binary Download**: Secure download from GitHub releases
+5. **Extension ID Configuration**: Interactive or command-line ID setup
+6. **Manifest Creation**: Native messaging manifest generation
+7. **Multi-Browser Installation**: Automatic browser detection and setup
+8. **Verification**: Complete installation verification
+9. **Success Reporting**: Detailed completion status and next steps
+
+#### Benefits Achieved
+- ✅ **Windows Parity**: Feature-complete installation matching Linux/macOS
+- ✅ **Professional UX**: Colored output, progress indicators, clear instructions
+- ✅ **Automation Ready**: Full command-line parameter support
+- ✅ **Multi-Browser Support**: Chrome, Edge, and Chromium automatic configuration
+- ✅ **Security Focused**: User-scoped installation, HTTPS downloads, validation
+- ✅ **Enterprise Ready**: Unattended installation support for IT departments
+- ✅ **Comprehensive Docs**: Professional documentation with troubleshooting
+
+#### Cross-Platform Installation Matrix ✅
+| Platform | Installation Method | Status |
+|----------|-------------------|---------|
+| Linux | `curl ... \| bash` | ✅ Complete |
+| macOS | `curl ... \| bash` | ✅ Complete |
+| Windows | `iwr ... \| iex` | ✅ **NEW** Complete |
+
+This implementation brings Windows users to feature parity with Linux/macOS, providing a professional, secure, and user-friendly installation experience. The PowerShell script handles all the complexity of Windows-specific paths, registry considerations, and multi-browser support while maintaining security best practices.
