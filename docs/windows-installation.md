@@ -1,67 +1,70 @@
 # Windows Installation Guide
 
-This guide provides detailed instructions for installing Algonius Browser MCP Host on Windows systems.
+This document provides detailed installation instructions for the Algonius Browser MCP Host on Windows systems.
 
-## Prerequisites
+## Overview
 
-- Windows 10 or later
-- PowerShell 5.1 or later (included with Windows 10+)
-- Google Chrome, Microsoft Edge, or Chromium browser
-- Internet connection for downloading the MCP host binary
+The Windows installation process involves:
+1. Downloading the Windows binary from GitHub releases
+2. Installing the binary to a user directory
+3. Creating native messaging manifests for Chrome/Edge/Chromium
+4. **Registering the native messaging host in Windows Registry** (Critical for Windows)
+5. Configuring extension permissions
 
-## Installation Methods
+## Important: Windows Registry Requirement
 
-### Method 1: One-Click PowerShell Installation (Recommended)
+⚠️ **Critical**: Unlike Linux/macOS, Windows Chrome Native Messaging requires **registry registration**. Simply placing manifest files in directories is not sufficient on Windows.
 
-**Quick Install**:
+The installer automatically:
+- Creates registry entries in `HKEY_CURRENT_USER\Software\[Browser]\NativeMessagingHosts\`
+- Points registry entries to the manifest file location
+- Supports Chrome, Edge, and Chromium browsers
+
+## Quick Installation
+
+### PowerShell One-Click Installer (Recommended)
+
+The easiest way to install on Windows is using our PowerShell installer:
+
 ```powershell
-iwr -useb https://raw.githubusercontent.com/algonius/algonius-browser/master/install-mcp-host.ps1 | iex
-```
-
-**Download and Run Locally**:
-```powershell
-# Download the script
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/algonius/algonius-browser/master/install-mcp-host.ps1" -OutFile "install-mcp-host.ps1"
-
-# Run the script
+# Download and run the installer
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/algonius/algonius-browser/main/install-mcp-host.ps1" -OutFile "install-mcp-host.ps1"
 .\install-mcp-host.ps1
 ```
 
-### Method 2: Manual Installation
+### Installation Options
 
-1. **Download Binary**:
-   - Visit [GitHub Releases](https://github.com/algonius/algonius-browser/releases/latest)
-   - Download `mcp-host-windows-amd64.exe`
+```powershell
+# Install latest version (interactive)
+.\install-mcp-host.ps1
 
-2. **Create Installation Directory**:
-   ```powershell
-   $installDir = "$env:USERPROFILE\.algonius-browser\bin"
-   New-Item -ItemType Directory -Path $installDir -Force
-   ```
+# Install specific version
+.\install-mcp-host.ps1 -Version "1.2.3"
 
-3. **Install Binary**:
-   ```powershell
-   Copy-Item "mcp-host-windows-amd64.exe" "$installDir\mcp-host.exe"
-   ```
+# Install with specific extension ID
+.\install-mcp-host.ps1 -ExtensionId "chrome-extension://your-extension-id/"
 
-4. **Create Native Messaging Manifest**:
-   ```powershell
-   # Create manifest directory
-   $manifestDir = "$env:LOCALAPPDATA\Google\Chrome\User Data\NativeMessagingHosts"
-   New-Item -ItemType Directory -Path $manifestDir -Force
-   
-   # Create manifest content
-   $manifest = @{
-       name = "ai.algonius.mcp.host"
-       description = "Algonius Browser MCP Native Messaging Host"
-       path = "$installDir\mcp-host.exe"
-       type = "stdio"
-       allowed_origins = @("chrome-extension://fmcmnpejjhphnfdaegmdmahkgaccghem/")
-   }
-   
-   # Save manifest
-   $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path "$manifestDir\ai.algonius.mcp.host.json" -Encoding UTF8
-   ```
+# Install with multiple extension IDs
+.\install-mcp-host.ps1 -ExtensionIds "chrome-extension://id1/,chrome-extension://id2/"
+
+# Uninstall
+.\install-mcp-host.ps1 -Uninstall
+
+# Show help
+.\install-mcp-host.ps1 -Help
+```
+
+## What the Installer Does
+
+The PowerShell installer performs these steps automatically:
+
+1. **Downloads the Binary**: Fetches the latest Windows binary from GitHub releases
+2. **Installs to User Directory**: Places the binary in `%USERPROFILE%\.algonius-browser\bin\`
+3. **Creates Manifest File**: Generates the native messaging manifest with your extension IDs
+4. **Registry Registration**: Creates registry entries for detected browsers:
+   - `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\ai.algonius.mcp.host`
+   - `HKEY_CURRENT_USER\Software\Microsoft\Edge\NativeMessagingHosts\ai.algonius.mcp.host`
+   - `HKEY_CURRENT_USER\Software\Chromium\NativeMessagingHosts\ai.algonius.mcp.host`
 
 ## PowerShell Script Options
 
@@ -170,16 +173,20 @@ Get-ChildItem "$env:LOCALAPPDATA\*\User Data\NativeMessagingHosts\ai.algonius.mc
 If the automatic uninstall fails:
 
 ```powershell
+# Remove registry entries (CRITICAL for Windows)
+Remove-Item "HKCU:\Software\Google\Chrome\NativeMessagingHosts\ai.algonius.mcp.host" -Force -ErrorAction SilentlyContinue
+Remove-Item "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\ai.algonius.mcp.host" -Force -ErrorAction SilentlyContinue
+Remove-Item "HKCU:\Software\Chromium\NativeMessagingHosts\ai.algonius.mcp.host" -Force -ErrorAction SilentlyContinue
+
 # Remove binary
 Remove-Item "$env:USERPROFILE\.algonius-browser\bin\mcp-host.exe" -Force
 
-# Remove manifests
-Remove-Item "$env:LOCALAPPDATA\Google\Chrome\User Data\NativeMessagingHosts\ai.algonius.mcp.host.json" -Force -ErrorAction SilentlyContinue
-Remove-Item "$env:LOCALAPPDATA\Microsoft\Edge\User Data\NativeMessagingHosts\ai.algonius.mcp.host.json" -Force -ErrorAction SilentlyContinue
-Remove-Item "$env:LOCALAPPDATA\Chromium\User Data\NativeMessagingHosts\ai.algonius.mcp.host.json" -Force -ErrorAction SilentlyContinue
+# Remove manifest file
+Remove-Item "$env:USERPROFILE\.algonius-browser\manifests\ai.algonius.mcp.host.json" -Force -ErrorAction SilentlyContinue
 
 # Remove empty directories
 Remove-Item "$env:USERPROFILE\.algonius-browser\bin" -Force -ErrorAction SilentlyContinue
+Remove-Item "$env:USERPROFILE\.algonius-browser\manifests" -Force -ErrorAction SilentlyContinue
 Remove-Item "$env:USERPROFILE\.algonius-browser" -Force -ErrorAction SilentlyContinue
 ```
 

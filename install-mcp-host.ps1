@@ -12,11 +12,17 @@ param(
 # Configuration
 $REPO = "algonius/algonius-browser"
 $INSTALL_DIR = Join-Path $env:USERPROFILE ".algonius-browser\bin"
-$MANIFEST_DIR = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data\NativeMessagingHosts"
-$CHROMIUM_MANIFEST_DIR = Join-Path $env:LOCALAPPDATA "Chromium\User Data\NativeMessagingHosts"
-$EDGE_MANIFEST_DIR = Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data\NativeMessagingHosts"
+$MANIFEST_DIR = Join-Path $env:USERPROFILE ".algonius-browser\manifests"
 $MANIFEST_NAME = "ai.algonius.mcp.host.json"
 $BINARY_NAME = "mcp-host.exe"
+$HOST_NAME = "ai.algonius.mcp.host"
+
+# Registry paths for different browsers
+$REGISTRY_PATHS = @{
+    Chrome   = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$HOST_NAME"
+    Edge     = "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\$HOST_NAME"
+    Chromium = "HKCU:\Software\Chromium\NativeMessagingHosts\$HOST_NAME"
+}
 
 # Default extension ID
 $DEFAULT_EXTENSION_ID = "chrome-extension://fmcmnpejjhphnfdaegmdmahkgaccghem/"
@@ -193,7 +199,7 @@ function Get-Binary {
     }
 }
 
-# Create native messaging manifest
+# Create native messaging manifest file
 function New-Manifest {
     param(
         [string]$ManifestPath,
@@ -201,9 +207,9 @@ function New-Manifest {
     )
     
     $manifest = @{
-        name = "ai.algonius.mcp.host"
+        name = $HOST_NAME
         description = "Algonius Browser MCP Native Messaging Host"
-        path = Join-Path $INSTALL_DIR $BINARY_NAME
+        path = (Join-Path $INSTALL_DIR $BINARY_NAME).Replace('\', '\\')
         type = "stdio"
         allowed_origins = $ExtensionIds
     }
@@ -214,48 +220,96 @@ function New-Manifest {
         New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
     }
     
-    # Convert to JSON and save
+    # Convert to JSON and save with proper Windows path formatting
     $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path $ManifestPath -Encoding UTF8
+    
+    return $ManifestPath
 }
 
-# Install manifest for different browsers
-function Install-Manifests {
+# Check if browser is installed
+function Test-BrowserInstalled {
+    param([string]$BrowserName)
+    
+    switch ($BrowserName) {
+        "Chrome" {
+            return Test-Path (Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data")
+        }
+        "Edge" {
+            return Test-Path (Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data")
+        }
+        "Chromium" {
+            return Test-Path (Join-Path $env:LOCALAPPDATA "Chromium\User Data")
+        }
+        default {
+            return $false
+        }
+    }
+}
+
+# Register native messaging host in Windows registry
+function Register-NativeMessagingHost {
+    param(
+        [string]$BrowserName,
+        [string]$RegistryPath,
+        [string]$ManifestPath
+    )
+    
+    try {
+        # Create registry key path if it doesn't exist
+        $parentPath = Split-Path $RegistryPath -Parent
+        if (-not (Test-Path $parentPath)) {
+            New-Item -Path $parentPath -Force | Out-Null
+        }
+        
+        # Create the host-specific registry key and set the manifest path
+        New-Item -Path $RegistryPath -Force | Out-Null
+        New-ItemProperty -Path $RegistryPath -Name "(Default)" -Value $ManifestPath -PropertyType String -Force | Out-Null
+        
+        Write-Log "Registered $BrowserName native messaging host: $RegistryPath"
+        return $true
+    }
+    catch {
+        Write-Warning "Failed to register $BrowserName native messaging host: $($_.Exception.Message)"
+        return $false
+    }
+}
+
+# Install manifests and register with browsers
+function Install-NativeMessagingHosts {
     param([string[]]$ExtensionIds)
     
-    $manifestsInstalled = 0
+    # Create single manifest file
+    $manifestPath = Join-Path $MANIFEST_DIR $MANIFEST_NAME
+    $manifestPath = New-Manifest -ManifestPath $manifestPath -ExtensionIds $ExtensionIds
     
-    # Google Chrome
-    $chromeProfileDir = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data"
-    if (Test-Path $chromeProfileDir) {
-        $chromeManifestPath = Join-Path $MANIFEST_DIR $MANIFEST_NAME
-        New-Manifest -ManifestPath $chromeManifestPath -ExtensionIds $ExtensionIds
-        Write-Log "Installed manifest for Google Chrome: $chromeManifestPath"
-        $manifestsInstalled++
+    Write-Log "Created manifest file: $manifestPath"
+    
+    $registrationsSuccessful = 0
+    
+    # Register with each detected browser
+    foreach ($browser in $REGISTRY_PATHS.Keys) {
+        if (Test-BrowserInstalled $browser) {
+            $registryPath = $REGISTRY_PATHS[$browser]
+            
+            if (Register-NativeMessagingHost -BrowserName $browser -RegistryPath $registryPath -ManifestPath $manifestPath) {
+                $registrationsSuccessful++
+            }
+        }
+        else {
+            Write-Info "$browser not detected, skipping registration"
+        }
     }
     
-    # Chromium
-    $chromiumProfileDir = Join-Path $env:LOCALAPPDATA "Chromium\User Data"
-    if (Test-Path $chromiumProfileDir) {
-        $chromiumManifestPath = Join-Path $CHROMIUM_MANIFEST_DIR $MANIFEST_NAME
-        New-Manifest -ManifestPath $chromiumManifestPath -ExtensionIds $ExtensionIds
-        Write-Log "Installed manifest for Chromium: $chromiumManifestPath"
-        $manifestsInstalled++
+    if ($registrationsSuccessful -eq 0) {
+        Write-Warning "No browsers successfully registered. Please check that Chrome, Edge, or Chromium are installed."
+        Write-Info "Manifest file created at: $manifestPath"
+        Write-Info "You may need to manually register the native messaging host."
+    }
+    else {
+        Write-Log "Successfully registered with $registrationsSuccessful browser(s)"
     }
     
-    # Microsoft Edge
-    $edgeProfileDir = Join-Path $env:LOCALAPPDATA "Microsoft\Edge\User Data"
-    if (Test-Path $edgeProfileDir) {
-        $edgeManifestPath = Join-Path $EDGE_MANIFEST_DIR $MANIFEST_NAME
-        New-Manifest -ManifestPath $edgeManifestPath -ExtensionIds $ExtensionIds
-        Write-Log "Installed manifest for Microsoft Edge: $edgeManifestPath"
-        $manifestsInstalled++
-    }
-    
-    if ($manifestsInstalled -eq 0) {
-        Write-Warning "No supported browsers detected. Manifest installed to default location: $MANIFEST_DIR\$MANIFEST_NAME"
-        $defaultManifestPath = Join-Path $MANIFEST_DIR $MANIFEST_NAME
-        New-Manifest -ManifestPath $defaultManifestPath -ExtensionIds $ExtensionIds
-    }
+    return $registrationsSuccessful
 }
 
 # Verify installation
@@ -277,6 +331,28 @@ function Test-Installation {
 function Uninstall-McpHost {
     Write-Log "Uninstalling Algonius Browser MCP Host..."
     
+    # Remove registry entries
+    $registriesRemoved = 0
+    foreach ($browser in $REGISTRY_PATHS.Keys) {
+        $registryPath = $REGISTRY_PATHS[$browser]
+        
+        if (Test-Path $registryPath) {
+            try {
+                Remove-Item $registryPath -Force
+                Write-Log "Removed $browser registry entry: $registryPath"
+                $registriesRemoved++
+            }
+            catch {
+                Write-Warning "Failed to remove $browser registry entry: $($_.Exception.Message)"
+            }
+        }
+        else {
+            Write-Info "$browser registry entry not found, skipping"
+        }
+    }
+    
+    Write-Log "Removed $registriesRemoved registry entries"
+    
     # Remove binary
     $binaryPath = Join-Path $INSTALL_DIR $BINARY_NAME
     if (Test-Path $binaryPath) {
@@ -284,24 +360,22 @@ function Uninstall-McpHost {
         Write-Log "Removed binary: $binaryPath"
     }
     
-    # Remove manifests
-    $manifestPaths = @(
-        (Join-Path $MANIFEST_DIR $MANIFEST_NAME),
-        (Join-Path $CHROMIUM_MANIFEST_DIR $MANIFEST_NAME),
-        (Join-Path $EDGE_MANIFEST_DIR $MANIFEST_NAME)
-    )
-    
-    foreach ($manifestPath in $manifestPaths) {
-        if (Test-Path $manifestPath) {
-            Remove-Item $manifestPath -Force
-            Write-Log "Removed manifest: $manifestPath"
-        }
+    # Remove manifest file
+    $manifestPath = Join-Path $MANIFEST_DIR $MANIFEST_NAME
+    if (Test-Path $manifestPath) {
+        Remove-Item $manifestPath -Force
+        Write-Log "Removed manifest: $manifestPath"
     }
     
-    # Remove install directory if empty
-    if ((Test-Path $INSTALL_DIR) -and ((Get-ChildItem $INSTALL_DIR).Count -eq 0)) {
+    # Remove empty directories
+    if ((Test-Path $INSTALL_DIR) -and ((Get-ChildItem $INSTALL_DIR -ErrorAction SilentlyContinue).Count -eq 0)) {
         Remove-Item $INSTALL_DIR -Force
         Write-Log "Removed empty directory: $INSTALL_DIR"
+    }
+    
+    if ((Test-Path $MANIFEST_DIR) -and ((Get-ChildItem $MANIFEST_DIR -ErrorAction SilentlyContinue).Count -eq 0)) {
+        Remove-Item $MANIFEST_DIR -Force
+        Write-Log "Removed empty directory: $MANIFEST_DIR"
     }
     
     Write-Log "Uninstallation completed!"
@@ -420,9 +494,9 @@ function Install-McpHost {
         Write-Info "  - $id"
     }
     
-    # Install manifests
-    Write-Log "Installing Native Messaging manifests..."
-    Install-Manifests -ExtensionIds $extensionIds
+    # Install manifests and register with browsers
+    Write-Log "Installing Native Messaging manifests and registering with browsers..."
+    $registrationsSuccessful = Install-NativeMessagingHosts -ExtensionIds $extensionIds
     
     # Verify installation
     Test-Installation

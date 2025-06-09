@@ -457,15 +457,22 @@ This enhancement ensures perfect alignment between the user's extension version 
 - **Interactive Mode**: User-friendly prompts with format examples
 - **Command Line Support**: `-ExtensionId` and `-ExtensionIds` parameters
 
-**3. Multi-Browser Native Messaging Support**
-- **Automatic Detection**: Scans for Chrome, Edge, and Chromium installations
-- **Manifest Installation**: Creates native messaging manifests for all detected browsers
-- **Directory Structure**:
-  - Chrome: `%LOCALAPPDATA%\Google\Chrome\User Data\NativeMessagingHosts`
-  - Edge: `%LOCALAPPDATA%\Microsoft\Edge\User Data\NativeMessagingHosts`
-  - Chromium: `%LOCALAPPDATA%\Chromium\User Data\NativeMessagingHosts`
+**3. **CRITICAL WINDOWS REGISTRY INTEGRATION** ✅**
+- **Registry-Based Registration**: Proper Windows Native Messaging host registration
+- **Registry Paths**:
+  - Chrome: `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\ai.algonius.mcp.host`
+  - Edge: `HKEY_CURRENT_USER\Software\Microsoft\Edge\NativeMessagingHosts\ai.algonius.mcp.host`
+  - Chromium: `HKEY_CURRENT_USER\Software\Chromium\NativeMessagingHosts\ai.algonius.mcp.host`
+- **Automatic Browser Detection**: Only registers with installed browsers
+- **Registry Cleanup**: Proper uninstallation removes all registry entries
 
-**4. Platform-Specific Features**
+**4. Multi-Browser Native Messaging Support**
+- **Single Manifest File**: Creates one manifest in `%USERPROFILE%\.algonius-browser\manifests\`
+- **Registry Registration**: Points each browser's registry entry to the manifest file
+- **Automatic Detection**: Scans for Chrome, Edge, and Chromium installations
+- **Windows-Specific Implementation**: Unlike Linux/macOS, uses registry instead of directory placement
+
+**5. Platform-Specific Features**
 - **Windows Architecture Detection**: Automatic x86/x64 binary selection
 - **PowerShell Execution Policy Handling**: Clear instructions for policy issues
 - **Windows Defender Considerations**: Guidance for antivirus software
