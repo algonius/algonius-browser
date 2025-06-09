@@ -46,7 +46,36 @@ Algonius Browser is an open-source MCP (Model Context Protocol) server that prov
 
 ## 🚀 Quick Start
 
-### 1. Install MCP Host
+### 1. Install Chrome Extension
+
+**From Chrome Web Store (Recommended)**:
+
+<a href="https://chromewebstore.google.com/detail/algonius-browser-mcp/fmcmnpejjhphnfdaegmdmahkgaccghem" target="_blank">
+  <img src="https://github.com/user-attachments/assets/4c2c0b5e-8f63-4a8b-9a5e-2d7e8f3c9b1a" alt="Available in the Chrome Web Store" width="248" height="75">
+</a>
+
+1. Click the "Add to Chrome" button on the [Chrome Web Store page](https://chromewebstore.google.com/detail/algonius-browser-mcp/fmcmnpejjhphnfdaegmdmahkgaccghem)
+2. Confirm the installation when prompted
+3. The extension will be automatically installed and ready to use
+
+**From Source (Development)**:
+```bash
+# Clone and build
+git clone https://github.com/algonius/algonius-browser.git
+cd algonius-browser
+pnpm install
+pnpm build
+
+# Load in Chrome
+# 1. Open chrome://extensions/
+# 2. Enable "Developer mode"
+# 3. Click "Load unpacked"
+# 4. Select the 'dist' folder
+```
+
+> ⚠️ **Important**: The Chrome extension requires the MCP Host backend service to function properly. Please continue with step 2 to complete the installation.
+
+### 2. Install MCP Host
 
 **One-Click Installation (Recommended)**:
 
@@ -71,31 +100,17 @@ cd mcp-host-linux-x86_64
 ./install.sh
 ```
 
-### 2. Install Chrome Extension
-
-**From Source**:
-```bash
-# Clone and build
-git clone https://github.com/algonius/algonius-browser.git
-cd algonius-browser
-pnpm install
-pnpm build
-
-# Load in Chrome
-# 1. Open chrome://extensions/
-# 2. Enable "Developer mode"
-# 3. Click "Load unpacked"
-# 4. Select the 'dist' folder
-```
-
-### 3. Start MCP Host
+### 3. Verify Installation
 
 ```bash
-# Test the installation
+# Test the MCP host installation
 mcp-host-go --version
 
 # The MCP host will be automatically started when needed by the Chrome extension
+# You should see the extension icon in your Chrome toolbar
 ```
+
+> ✅ **Success**: Both components are now installed! The Chrome extension will automatically communicate with the MCP Host when browser automation is requested.
 
 ## 🔧 Integration Examples
 
