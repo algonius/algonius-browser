@@ -1,12 +1,12 @@
-name: Feature
-description: Suggest an idea for Nanobrowser
+name: Feature Request
+description: Suggest an idea for Algonius Browser
 title: "[Feature]: "
 labels: ["enhancement", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for suggesting a new feature!
+        Thanks for suggesting a new feature for Algonius Browser!
         
   - type: textarea
     id: problem

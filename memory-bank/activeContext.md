@@ -1,35 +1,37 @@
 # Active Context
 
 ## Current Work Focus
-**Windows Installation Documentation Fix (COMPLETED)** - Fixed critical Windows registry documentation gap
+**GitHub Issue Templates Branding Fix (COMPLETED)** - Fixed branding inconsistencies across all GitHub issue templates
 
 ## Recent Changes
-### Windows Installation Manual Uninstallation Fix ✅
-- **Problem**: Manual uninstallation section in Windows docs was missing critical registry cleanup
-- **Issue**: Instructions only removed manifest files but not Windows registry entries, leaving system in broken state
-- **Solution**: Updated `docs/windows-installation.md` with proper registry cleanup commands
-- **Critical Fix**: Added registry removal commands:
-  - `HKCU:\Software\Google\Chrome\NativeMessagingHosts\ai.algonius.mcp.host`
-  - `HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\ai.algonius.mcp.host`
-  - `HKCU:\Software\Chromium\NativeMessagingHosts\ai.algonius.mcp.host`
+### GitHub Issue Templates Branding Update ✅
+- **Problem**: Issue templates contained inconsistent branding references to "NanoBrowser" and "Nanobrowser" instead of "Algonius Browser"
+- **Issue**: Templates referenced wrong repository URLs and used outdated project names
+- **Solution**: Updated all GitHub issue templates to use consistent "Algonius Browser" branding
+- **Files Updated**:
+  - `.github/ISSUE_TEMPLATE/bug_report.yml` - Fixed project name, updated form fields for MCP architecture
+  - `.github/ISSUE_TEMPLATE/feature_request.yml` - Updated project name and description
+  - `.github/ISSUE_TEMPLATE/docs.yml` - Added project name for clarity
+  - `.github/ISSUE_TEMPLATE/config.yml` - Fixed repository URLs and added Discord community link
 
 ### Technical Implementation Details
-- **Registry Cleanup**: Added PowerShell commands to remove registry entries
-- **File System Cleanup**: Updated paths to match actual installer structure
-- **Directory Structure**: Fixed manifest file location to `%USERPROFILE%\.algonius-browser\manifests\`
-- **Complete Coverage**: Manual uninstall now mirrors automatic uninstaller functionality
+- **Bug Report Template**: Replaced LLM-focused fields with MCP component fields (Chrome Extension, MCP Host, Browser Automation Tools)
+- **Repository URLs**: Updated from `nanobrowser/nanobrowser` to `algonius/algonius-browser`
+- **Version Examples**: Updated from "0.1.0" to current "0.4.11" format
+- **Community Links**: Added Discord community link alongside GitHub Discussions
+- **Form Fields**: Modernized bug report to reflect MCP architecture rather than multi-agent system
 
 ### Previous Achievements
+- **Windows Installation Documentation Fix**: Fixed critical Windows registry documentation gap
 - **PowerShell Installer**: Complete Windows installation script with registry support
-- **Windows Documentation**: Comprehensive `docs/windows-installation.md` guide
 - **Cross-Platform Parity**: Windows now matches Linux/macOS installation experience
 
 ## Next Steps
-Task is complete. Windows installation documentation now properly covers:
-1. ✅ Registry-based Windows Native Messaging requirements
-2. ✅ Complete manual uninstallation procedures  
-3. ✅ Proper directory structure documentation
-4. ✅ Registry cleanup commands included
+GitHub branding consistency is now complete across all issue templates:
+1. ✅ Bug report template updated with correct project name and MCP-focused fields
+2. ✅ Feature request template uses consistent "Algonius Browser" branding
+3. ✅ Documentation template includes project name clarity
+4. ✅ Config file points to correct repository and includes Discord community
 
 ## Active Decisions and Considerations
 - **Windows Registry Critical**: Unlike Linux/macOS, Windows Native Messaging REQUIRES registry entries

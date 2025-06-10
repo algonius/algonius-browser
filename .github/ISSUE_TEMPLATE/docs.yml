@@ -1,5 +1,5 @@
 name: Documentation
-description: Suggest a change to our documentation
+description: Suggest a change to Algonius Browser documentation
 title: "[Docs]: "
 labels: ["docs", "needs-triage"]
 body:
