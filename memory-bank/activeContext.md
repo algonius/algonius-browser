@@ -1,52 +1,51 @@
 # Active Context
 
 ## Current Work Focus
-**GitHub Issue Templates Branding Fix (COMPLETED)** - Fixed branding inconsistencies across all GitHub issue templates
+**Disabled Interactive Elements Visibility Enhancement (COMPLETED)** - Enhanced DOM state output to include disabled form elements for better accessibility and user experience
 
 ## Recent Changes
-### GitHub Issue Templates Branding Update ✅
-- **Problem**: Issue templates contained inconsistent branding references to "NanoBrowser" and "Nanobrowser" instead of "Algonius Browser"
-- **Issue**: Templates referenced wrong repository URLs and used outdated project names
-- **Solution**: Updated all GitHub issue templates to use consistent "Algonius Browser" branding
-- **Files Updated**:
-  - `.github/ISSUE_TEMPLATE/bug_report.yml` - Fixed project name, updated form fields for MCP architecture
-  - `.github/ISSUE_TEMPLATE/feature_request.yml` - Updated project name and description
-  - `.github/ISSUE_TEMPLATE/docs.yml` - Added project name for clarity
-  - `.github/ISSUE_TEMPLATE/config.yml` - Fixed repository URLs and added Discord community link
+### Disabled Interactive Elements Visibility Enhancement ✅
+- **Problem**: Disabled form elements (buttons, inputs, selects, etc.) were invisible in DOM state output, making it difficult for users to understand why certain elements appeared unresponsive
+- **Issue**: The `clickableElementsToString()` method only showed elements with `highlightIndex !== null`, excluding disabled interactive elements
+- **Solution**: Enhanced the DOM view logic to detect and display disabled interactive elements with special `[DISABLED]` indicator
+- **Files Modified**:
+  - `chrome-extension/src/background/dom/views.ts` - Added `isDisabledInteractiveElement()` method and updated display logic
 
 ### Technical Implementation Details
-- **Bug Report Template**: Replaced LLM-focused fields with MCP component fields (Chrome Extension, MCP Host, Browser Automation Tools)
-- **Repository URLs**: Updated from `nanobrowser/nanobrowser` to `algonius/algonius-browser`
-- **Version Examples**: Updated from "0.1.0" to current "0.4.11" format
-- **Community Links**: Added Discord community link alongside GitHub Discussions
-- **Form Fields**: Modernized bug report to reflect MCP architecture rather than multi-agent system
+- **New Method**: `isDisabledInteractiveElement()` - Detects disabled interactive elements (button, input, select, textarea, option) with proper input type validation
+- **Enhanced Display Logic**: Modified `clickableElementsToString()` to show both highlighted elements and disabled interactive elements
+- **Special Indicator**: Disabled elements display as `[DISABLED]<tagName>` instead of numeric highlight indices
+- **Text Node Handling**: Updated `hasParentWithHighlightIndex()` to consider disabled interactive elements as "highlighted" parents
+- **Supported Elements**: Buttons, inputs (all interactive types), selects, textareas, and options
 
 ### Previous Achievements
+- **GitHub Issue Templates Branding Update**: Fixed branding inconsistencies across all GitHub issue templates
 - **Windows Installation Documentation Fix**: Fixed critical Windows registry documentation gap
 - **PowerShell Installer**: Complete Windows installation script with registry support
 - **Cross-Platform Parity**: Windows now matches Linux/macOS installation experience
 
 ## Next Steps
-GitHub branding consistency is now complete across all issue templates:
-1. ✅ Bug report template updated with correct project name and MCP-focused fields
-2. ✅ Feature request template uses consistent "Algonius Browser" branding
-3. ✅ Documentation template includes project name clarity
-4. ✅ Config file points to correct repository and includes Discord community
+The disabled interactive elements enhancement is now complete:
+1. ✅ Added detection method for disabled interactive elements
+2. ✅ Updated display logic to include disabled elements in DOM state
+3. ✅ Implemented special `[DISABLED]` indicator for clarity
+4. ✅ Enhanced text node parent detection logic
 
 ## Active Decisions and Considerations
-- **Windows Registry Critical**: Unlike Linux/macOS, Windows Native Messaging REQUIRES registry entries
-- **Single Manifest Strategy**: Windows installer uses one manifest file + registry pointers vs multiple manifests
-- **Documentation Accuracy**: Manual uninstall must match automatic uninstaller behavior exactly
+- **Accessibility Focus**: Disabled elements are now visible to help users understand interface state
+- **Clear Indication**: `[DISABLED]` prefix clearly distinguishes non-interactive from interactive elements
+- **Comprehensive Coverage**: All interactive element types supported (button, input, select, textarea, option)
+- **Input Type Validation**: Only truly interactive input types are considered (excludes hidden, image, etc.)
 
 ## Important Patterns and Preferences
-- **Windows-Specific Architecture**: Registry-based vs directory-based Native Messaging
-- **PowerShell Focus**: All Windows documentation uses PowerShell commands
-- **User-Scoped Installation**: No administrator privileges required
-- **Multi-Browser Support**: Chrome, Edge, and Chromium automatic detection
+- **DOM State Transparency**: Users should see all relevant elements, including disabled ones
+- **Clear Visual Indicators**: Different prefixes for different element states (`[index]`, `*[index]*`, `[DISABLED]`)
+- **Comprehensive Element Detection**: Both enabled highlighted and disabled interactive elements are shown
+- **Type Safety**: Proper TypeScript typing and null checking throughout
 
 ## Learnings and Project Insights
-- **Platform Differences**: Windows Native Messaging fundamentally different from Linux/macOS
-- **Registry Management**: Critical for Windows Native Messaging functionality
-- **Documentation Completeness**: Manual procedures must be comprehensive for debugging
-- **Cross-Platform Challenges**: Each platform requires specialized knowledge and testing
-- **Windows Installer Architecture**: Single manifest + registry pointers is more efficient than multiple manifest copies
+- **User Experience Priority**: Visibility of disabled elements is crucial for understanding interface behavior
+- **DOM State Completeness**: Showing only clickable elements can hide important context about form state
+- **Accessibility Considerations**: Disabled elements provide important context about available actions
+- **Implementation Balance**: Enhancement maintains existing behavior while adding new visibility features
+- **TypeScript Benefits**: Strong typing helps ensure comprehensive element type detection
