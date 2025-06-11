@@ -36,7 +36,7 @@ func NewSetValueTool(config SetValueConfig) (*SetValueTool, error) {
 
 	return &SetValueTool{
 		name:        "set_value",
-		description: "Set values on interactive elements (text inputs, selects, checkboxes, etc.) using flexible targeting",
+		description: "Set values on form input elements (text inputs, selects, checkboxes, textareas, etc.) using flexible targeting. SUPPORTED: input, select, textarea elements and their variants. NOT SUPPORTED: button, div, span or other non-form interactive elements (use click_element for these)",
 		logger:      config.Logger,
 		messaging:   config.Messaging,
 	}, nil
@@ -59,7 +59,7 @@ func (t *SetValueTool) GetInputSchema() interface{} {
 		"properties": map[string]interface{}{
 			"element_index": map[string]interface{}{
 				"type":        "number",
-				"description": "Index of the element to set value (0-based, from DOM state interactive_elements)",
+				"description": "Index of the form input element to set value (0-based, from DOM state interactive_elements). Only works with form elements like input, select, textarea - not buttons or custom UI components",
 				"minimum":     0,
 			},
 			"value": map[string]interface{}{
