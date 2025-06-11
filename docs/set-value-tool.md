@@ -1,6 +1,6 @@
 # Set Value Tool
 
-The `set_value` tool enables AI systems to set values on interactive web page elements through the MCP host. This tool supports various element types including text inputs, select dropdowns, checkboxes, and other form elements.
+The `set_value` tool enables AI systems to set values on form input elements on web pages through the MCP host. This tool supports form elements including text inputs, select dropdowns, checkboxes, textareas, and other input elements. **Important: This tool only works with form input elements (input, select, textarea) and does NOT support buttons, divs, or other non-form interactive elements.**
 
 ## Overview
 
@@ -217,6 +217,38 @@ Comprehensive integration tests are available in `mcp-host-go/tests/integration/
 - Schema validation
 - Different targeting methods (index vs description)
 
+## Limitations and Alternatives
+
+### ❌ **NOT Supported by set_value:**
+- **Button elements** (`<button>`) - Use `click_element` instead
+- **Div-based dropdowns** - Use `click_element` to open, then click options
+- **Custom UI components** - Use `click_element` for interactions
+- **Span or other non-form elements** - Use `click_element` instead
+
+### ✅ **Supported by set_value:**
+- **Input elements** (`<input type="text|email|password|etc">`)
+- **Select dropdowns** (`<select>`)
+- **Textareas** (`<textarea>`)
+- **Checkboxes** (`<input type="checkbox">`)
+- **Radio buttons** (`<input type="radio">`)
+
+### Alternative Workflows
+
+For button-based dropdowns:
+```json
+// Step 1: Click button to open dropdown
+{
+  "tool": "click_element",
+  "element_index": 1
+}
+
+// Step 2: Click desired option
+{
+  "tool": "click_element", 
+  "element_index": 3
+}
+```
+
 ## Best Practices
 
 1. **Use DOM State First**: Check the DOM state resource to understand available elements before using this tool
@@ -224,6 +256,7 @@ Comprehensive integration tests are available in `mcp-host-go/tests/integration/
 3. **Handle Errors Gracefully**: Always check the success field in responses
 4. **Wait Appropriately**: Use reasonable `wait_after` values for page interactions
 5. **Clear Before Setting**: Use `clear_first: true` for text inputs to avoid unexpected content
+6. **Check Element Type**: Verify element type before using set_value - use click_element for buttons
 
 ## Related Tools
 

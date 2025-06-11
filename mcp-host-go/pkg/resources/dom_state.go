@@ -283,9 +283,8 @@ func (r *DomStateResource) convertToMarkdown(overview DomStateOverview) string {
 							builder.WriteString(fmt.Sprintf("- **Placeholder:** %s\n", str))
 						}
 					case "selector":
-						if str, ok := value.(string); ok && strings.TrimSpace(str) != "" {
-							builder.WriteString(fmt.Sprintf("- **Selector:** `%s`\n", str))
-						}
+						// Skip selector, There is enough information in the Dom structure
+						builder.WriteString("")
 					case "xpath":
 						if str, ok := value.(string); ok && strings.TrimSpace(str) != "" {
 							builder.WriteString(fmt.Sprintf("- **XPath:** `%s`\n", str))
