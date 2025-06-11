@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrollable Container Test</title>
+    <style>
+        body {
+            margin: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .main-content {
+            height: 100vh;
+            overflow: hidden;
+        }
+        .scrollable-container {
+            height: 300px;
+            width: 500px;
+            overflow: auto;
+            border: 2px solid #333;
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        .long-content {
+            height: 1200px;
+            background: linear-gradient(to bottom, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7);
+            padding: 20px;
+            color: white;
+            font-weight: bold;
+        }
+        .content-section {
+            height: 200px;
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .section-1 { background-color: rgba(255, 107, 107, 0.8); }
+        .section-2 { background-color: rgba(78, 205, 196, 0.8); }
+        .section-3 { background-color: rgba(69, 183, 209, 0.8); }
+        .section-4 { background-color: rgba(150, 206, 180, 0.8); }
+        .section-5 { background-color: rgba(255, 234, 167, 0.8); }
+        .section-6 { background-color: rgba(163, 122, 236, 0.8); }
+        
+        .horizontal-scroll {
+            width: 300px;
+            height: 150px;
+            overflow-x: auto;
+            border: 2px solid #666;
+            margin: 20px 0;
+            white-space: nowrap;
+        }
+        .wide-content {
+            width: 800px;
+            height: 100px;
+            background: linear-gradient(to right, #ff9a9e, #fecfef, #fecfef, #a8edea);
+            display: inline-block;
+            line-height: 100px;
+            text-align: center;
+            color: #333;
+            font-weight: bold;
+        }
+        
+        .nested-scroll {
+            height: 200px;
+            overflow: auto;
+            border: 1px solid #999;
+            margin: 10px;
+            background-color: #fff;
+        }
+        .nested-content {
+            height: 600px;
+            background: repeating-linear-gradient(
+                45deg,
+                #f0f0f0,
+                #f0f0f0 10px,
+                #e0e0e0 10px,
+                #e0e0e0 20px
+            );
+            padding: 10px;
+        }
+
+        button {
+            margin: 10px 5px;
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Scrollable Container Test Page</h1>
+    <p>This page contains various scrollable containers to test the scroll_page tool functionality.</p>
+    
+    <div class="controls">
+        <button onclick="scrollMainContainer('down')">Scroll Main Container Down</button>
+        <button onclick="scrollMainContainer('up')">Scroll Main Container Up</button>
+        <button onclick="scrollHorizontal('right')">Scroll Horizontal Right</button>
+        <button onclick="scrollHorizontal('left')">Scroll Horizontal Left</button>
+    </div>
+
+    <!-- Main vertical scrollable container -->
+    <div id="main-scrollable" class="scrollable-container">
+        <h3>Main Scrollable Container (Vertical)</h3>
+        <div class="long-content">
+            <div class="content-section section-1">
+                <h4>Section 1 - Red Zone</h4>
+                <p>This is the first section of scrollable content. You should be able to scroll down to see more sections.</p>
+            </div>
+            <div class="content-section section-2">
+                <h4>Section 2 - Teal Zone</h4>
+                <p>This is the second section. Keep scrolling to explore more content.</p>
+            </div>
+            <div class="content-section section-3">
+                <h4>Section 3 - Blue Zone</h4>
+                <p>This is the third section. The container has enough content to require scrolling.</p>
+            </div>
+            <div class="content-section section-4">
+                <h4>Section 4 - Green Zone</h4>
+                <p>This is the fourth section. Almost at the bottom now!</p>
+            </div>
+            <div class="content-section section-5">
+                <h4>Section 5 - Yellow Zone</h4>
+                <p>This is the fifth and final section. You've reached the bottom of the main container!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Horizontal scrollable container -->
+    <div id="horizontal-scrollable" class="horizontal-scroll">
+        <div class="wide-content">
+            Scroll horizontally to see this full content → → → → → → → → End of horizontal content!
+        </div>
+    </div>
+
+    <!-- Nested scrollable container -->
+    <div id="nested-container" class="scrollable-container">
+        <h3>Container with Nested Scrollable</h3>
+        <p>This container has another scrollable element inside it:</p>
+        <div class="nested-scroll">
+            <div class="nested-content">
+                <h4>Nested Scrollable Content</h4>
+                <p>This is content inside a nested scrollable container.</p>
+                <p>You can scroll this independently of the parent container.</p>
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+                <p>Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+                <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco.</p>
+                <p>Duis aute irure dolor in reprehenderit in voluptate velit esse.</p>
+                <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa.</p>
+                <p>Keep scrolling to see more nested content...</p>
+                <p>More content here to make it scrollable.</p>
+                <p>Even more content to ensure scrolling is needed.</p>
+                <p>Final piece of nested scrollable content!</p>
+            </div>
+        </div>
+        <p>Back to the main container content.</p>
+    </div>
+
+    <script>
+        function scrollMainContainer(direction) {
+            const container = document.getElementById('main-scrollable');
+            const scrollAmount = 100;
+            if (direction === 'down') {
+                container.scrollTop += scrollAmount;
+            } else if (direction === 'up') {
+                container.scrollTop -= scrollAmount;
+            }
+        }
+
+        function scrollHorizontal(direction) {
+            const container = document.getElementById('horizontal-scrollable');
+            const scrollAmount = 50;
+            if (direction === 'right') {
+                container.scrollLeft += scrollAmount;
+            } else if (direction === 'left') {
+                container.scrollLeft -= scrollAmount;
+            }
+        }
+
+        // Add some logging to see if the containers are working
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Test page loaded with scrollable containers');
+            
+            const mainContainer = document.getElementById('main-scrollable');
+            const horizontalContainer = document.getElementById('horizontal-scrollable');
+            
+            console.log('Main container scroll height:', mainContainer.scrollHeight);
+            console.log('Main container client height:', mainContainer.clientHeight);
+            console.log('Horizontal container scroll width:', horizontalContainer.scrollWidth);
+            console.log('Horizontal container client width:', horizontalContainer.clientWidth);
+        });
+    </script>
+</body>
+</html>

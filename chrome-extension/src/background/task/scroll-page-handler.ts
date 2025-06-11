@@ -27,6 +27,183 @@ export class ScrollPageHandler {
   constructor(private readonly browserContext: BrowserContext) {}
 
   /**
+   * Find the most appropriate scrollable container on the page
+   * Returns null if only window scrolling should be used
+   */
+  private async findScrollableContainer(page: any): Promise<any> {
+    if (!page._puppeteerPage) {
+      return null;
+    }
+
+    return await page._puppeteerPage.evaluate(() => {
+      // Function to check if an element is scrollable
+      function isScrollable(element: Element): boolean {
+        const style = window.getComputedStyle(element);
+        const overflowX = style.overflowX;
+        const overflowY = style.overflowY;
+        const overflow = style.overflow;
+
+        // Check if element has scroll overflow
+        const hasVerticalScroll = element.scrollHeight > element.clientHeight;
+        const hasHorizontalScroll = element.scrollWidth > element.clientWidth;
+
+        // Check if overflow allows scrolling
+        const allowsVerticalScroll =
+          overflowY === 'auto' || overflowY === 'scroll' || overflow === 'auto' || overflow === 'scroll';
+        const allowsHorizontalScroll =
+          overflowX === 'auto' || overflowX === 'scroll' || overflow === 'auto' || overflow === 'scroll';
+
+        return (hasVerticalScroll && allowsVerticalScroll) || (hasHorizontalScroll && allowsHorizontalScroll);
+      }
+
+      // Function to check if element is in viewport
+      function isInViewport(element: Element): boolean {
+        const rect = element.getBoundingClientRect();
+        return (
+          rect.top >= 0 &&
+          rect.left >= 0 &&
+          rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+          rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
+      }
+
+      // Function to get element area
+      function getElementArea(element: Element): number {
+        const rect = element.getBoundingClientRect();
+        return rect.width * rect.height;
+      }
+
+      // Find all scrollable elements
+      const allElements = Array.from(document.querySelectorAll('*'));
+      const scrollableElements = allElements.filter(isScrollable);
+
+      if (scrollableElements.length === 0) {
+        return null; // No scrollable containers found, use window scrolling
+      }
+
+      // Prioritize scrollable elements that are:
+      // 1. In viewport
+      // 2. Have larger area (more prominent)
+      // 3. Are not the body or html element (prefer specific containers)
+
+      const inViewportScrollable = scrollableElements.filter(isInViewport);
+
+      if (inViewportScrollable.length === 0) {
+        // If no scrollable elements in viewport, use the largest scrollable element
+        const largestScrollable = scrollableElements.reduce((largest, current) => {
+          return getElementArea(current) > getElementArea(largest) ? current : largest;
+        });
+
+        // Don't use body or html as preferred containers unless they're the only option
+        if (largestScrollable.tagName === 'BODY' || largestScrollable.tagName === 'HTML') {
+          return null;
+        }
+
+        return {
+          element: largestScrollable,
+          tagName: largestScrollable.tagName,
+          id: largestScrollable.id,
+          className: largestScrollable.className,
+          scrollHeight: largestScrollable.scrollHeight,
+          scrollWidth: largestScrollable.scrollWidth,
+          clientHeight: largestScrollable.clientHeight,
+          clientWidth: largestScrollable.clientWidth,
+        };
+      }
+
+      // Find the most appropriate scrollable element in viewport
+      const bestScrollable =
+        inViewportScrollable
+          .filter(el => el.tagName !== 'BODY' && el.tagName !== 'HTML') // Prefer specific containers
+          .sort((a, b) => getElementArea(b) - getElementArea(a))[0] || // Sort by area, largest first
+        inViewportScrollable[0]; // Fallback to first in-viewport element
+
+      return {
+        element: bestScrollable,
+        tagName: bestScrollable.tagName,
+        id: bestScrollable.id,
+        className: bestScrollable.className,
+        scrollHeight: bestScrollable.scrollHeight,
+        scrollWidth: bestScrollable.scrollWidth,
+        clientHeight: bestScrollable.clientHeight,
+        clientWidth: bestScrollable.clientWidth,
+      };
+    });
+  }
+
+  /**
+   * Scroll within a specific container element
+   */
+  private async scrollContainer(page: any, containerInfo: any, action: string, pixels?: number): Promise<string> {
+    if (!page._puppeteerPage) {
+      throw new Error('Puppeteer page not available');
+    }
+
+    return await page._puppeteerPage.evaluate(
+      (containerData: any, scrollAction: string, scrollPixels?: number) => {
+        // Find the container element again (we can't pass the actual element reference)
+        let container: Element | null = null;
+
+        if (containerData.id) {
+          container = document.getElementById(containerData.id);
+        }
+
+        if (!container && containerData.className) {
+          const elements = document.getElementsByClassName(containerData.className);
+          if (elements.length > 0) {
+            container = elements[0];
+          }
+        }
+
+        if (!container) {
+          // Fallback: find by tag name and properties
+          const elements = document.getElementsByTagName(containerData.tagName);
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i];
+            if (el.scrollHeight === containerData.scrollHeight && el.clientHeight === containerData.clientHeight) {
+              container = el;
+              break;
+            }
+          }
+        }
+
+        if (!container) {
+          throw new Error('Could not relocate scrollable container');
+        }
+
+        const scrollAmount = scrollPixels || 300;
+        let result = '';
+
+        switch (scrollAction) {
+          case 'up':
+            container.scrollTop -= scrollAmount;
+            result = `Scrolled up ${scrollAmount} pixels in container (${containerData.tagName}${containerData.id ? '#' + containerData.id : ''})`;
+            break;
+          case 'down':
+            container.scrollTop += scrollAmount;
+            result = `Scrolled down ${scrollAmount} pixels in container (${containerData.tagName}${containerData.id ? '#' + containerData.id : ''})`;
+            break;
+          case 'to_top':
+            container.scrollTop = 0;
+            result = `Scrolled to top of container (${containerData.tagName}${containerData.id ? '#' + containerData.id : ''})`;
+            break;
+          case 'to_bottom':
+            container.scrollTop = container.scrollHeight;
+            result = `Scrolled to bottom of container (${containerData.tagName}${containerData.id ? '#' + containerData.id : ''})`;
+            break;
+          default:
+            throw new Error(`Unsupported container scroll action: ${scrollAction}`);
+        }
+
+        return result;
+      },
+      containerInfo,
+      action,
+      pixels,
+    );
+  }
+
+  /**
    * Handle a scroll_page RPC request
    *
    * @param request RPC request with scroll parameters
@@ -144,7 +321,17 @@ export class ScrollPageHandler {
    */
   private async scrollUp(page: any, pixels?: number): Promise<void> {
     const scrollAmount = pixels || 300;
-    await page.scrollUp(scrollAmount);
+
+    // Try to find a scrollable container first
+    const container = await this.findScrollableContainer(page);
+
+    if (container) {
+      // Use container scrolling
+      await this.scrollContainer(page, container, 'up', scrollAmount);
+    } else {
+      // Fall back to window scrolling
+      await page.scrollUp(scrollAmount);
+    }
 
     // Wait for scroll to complete
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -158,7 +345,17 @@ export class ScrollPageHandler {
    */
   private async scrollDown(page: any, pixels?: number): Promise<void> {
     const scrollAmount = pixels || 300;
-    await page.scrollDown(scrollAmount);
+
+    // Try to find a scrollable container first
+    const container = await this.findScrollableContainer(page);
+
+    if (container) {
+      // Use container scrolling
+      await this.scrollContainer(page, container, 'down', scrollAmount);
+    } else {
+      // Fall back to window scrolling
+      await page.scrollDown(scrollAmount);
+    }
 
     // Wait for scroll to complete
     await new Promise(resolve => setTimeout(resolve, 300));
@@ -202,14 +399,23 @@ export class ScrollPageHandler {
    * @param page The page instance to scroll
    */
   private async scrollToTop(page: any): Promise<void> {
-    if (page._puppeteerPage) {
-      await page._puppeteerPage.evaluate(() => {
-        window.scrollTo({
-          top: 0,
-          left: 0,
-          behavior: 'smooth',
+    // Try to find a scrollable container first
+    const container = await this.findScrollableContainer(page);
+
+    if (container) {
+      // Use container scrolling
+      await this.scrollContainer(page, container, 'to_top');
+    } else {
+      // Fall back to window scrolling
+      if (page._puppeteerPage) {
+        await page._puppeteerPage.evaluate(() => {
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'smooth',
+          });
         });
-      });
+      }
     }
 
     // Wait for scroll to complete
@@ -222,14 +428,23 @@ export class ScrollPageHandler {
    * @param page The page instance to scroll
    */
   private async scrollToBottom(page: any): Promise<void> {
-    if (page._puppeteerPage) {
-      await page._puppeteerPage.evaluate(() => {
-        window.scrollTo({
-          top: document.body.scrollHeight,
-          left: 0,
-          behavior: 'smooth',
+    // Try to find a scrollable container first
+    const container = await this.findScrollableContainer(page);
+
+    if (container) {
+      // Use container scrolling
+      await this.scrollContainer(page, container, 'to_bottom');
+    } else {
+      // Fall back to window scrolling
+      if (page._puppeteerPage) {
+        await page._puppeteerPage.evaluate(() => {
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            left: 0,
+            behavior: 'smooth',
+          });
         });
-      });
+      }
     }
 
     // Wait for scroll to complete
