@@ -24,7 +24,7 @@ export class DOMTextNode extends DOMBaseNode {
   hasParentWithHighlightIndex(): boolean {
     let current = this.parent;
     while (current != null) {
-      if (current.highlightIndex !== null) {
+      if (current.highlightIndex !== null || current.isDisabledInteractiveElement()) {
         return true;
       }
       current = current.parent;
@@ -197,8 +197,11 @@ export class DOMElementNode extends DOMBaseNode {
       const depthStr = '\t'.repeat(depth);
 
       if (node instanceof DOMElementNode) {
-        // Add element with highlight_index
-        if (node.highlightIndex !== null) {
+        // Add element with highlight_index or disabled interactive elements
+        const hasHighlightIndex = node.highlightIndex !== null;
+        const isDisabledInteractive = node.isDisabledInteractiveElement();
+
+        if (hasHighlightIndex || isDisabledInteractive) {
           nextDepth += 1;
 
           const text = node.getAllTextTillNextClickableElement();
@@ -244,7 +247,13 @@ export class DOMElementNode extends DOMBaseNode {
           }
 
           // Build the line
-          const highlightIndicator = node.isNew ? `*[${node.highlightIndex}]*` : `[${node.highlightIndex}]`;
+          let highlightIndicator: string;
+          if (hasHighlightIndex) {
+            highlightIndicator = node.isNew ? `*[${node.highlightIndex}]*` : `[${node.highlightIndex}]`;
+          } else {
+            // For disabled interactive elements without highlightIndex
+            highlightIndicator = '[DISABLED]';
+          }
 
           let line = `${depthStr}${highlightIndicator}<${node.tagName}`;
 
@@ -309,6 +318,51 @@ export class DOMElementNode extends DOMBaseNode {
     }
 
     return null;
+  }
+
+  /**
+   * Check if this element is a disabled interactive element
+   * @returns true if the element is disabled and is an interactive element type
+   */
+  isDisabledInteractiveElement(): boolean {
+    // Check if the element has the disabled attribute
+    const isDisabled = this.attributes.disabled !== undefined;
+
+    if (!isDisabled) {
+      return false;
+    }
+
+    // Check if the element is an interactive type
+    const interactiveTagNames = new Set(['button', 'input', 'select', 'textarea', 'option']);
+
+    const tagName = this.tagName?.toLowerCase();
+    if (!tagName || !interactiveTagNames.has(tagName)) {
+      return false;
+    }
+
+    // Additional check for input elements - ensure they are interactive types
+    if (tagName === 'input') {
+      const inputType = this.attributes.type?.toLowerCase() || 'text';
+      const interactiveInputTypes = new Set([
+        'text',
+        'password',
+        'email',
+        'number',
+        'tel',
+        'url',
+        'search',
+        'button',
+        'submit',
+        'reset',
+        'checkbox',
+        'radio',
+        'file',
+        'range',
+      ]);
+      return interactiveInputTypes.has(inputType);
+    }
+
+    return true;
   }
 
   getEnhancedCssSelector(): string {
