@@ -1,7 +1,24 @@
 # Active Context
 
 ## Current Work Focus
-**Real-world Browser Automation Research** - Successfully researched Bloom Trading Bot using comprehensive browser automation tools
+**Algonius Browser Continuous Optimization Process Update** - Successfully simplified and improved the optimization workflow documentation in .clinerules
+
+### manage_tabs Cross-Window Support Fix ✅ NEWLY COMPLETED
+- **Problem**: The manage_tabs tool only worked for tabs within the current browser window
+- **Issue**: When users had multiple browser windows open, tab switching failed for tabs in other windows
+- **Root Cause**: Tab activation without proper window focus caused the operation to fail silently
+- **Solution**: Enhanced the switchTab() method in BrowserContext to:
+  - Get the target tab's window ID using `chrome.tabs.get()`
+  - Focus the window containing the tab using `chrome.windows.update()`
+  - Then activate the tab within that window using `chrome.tabs.update()`
+- **Files Modified**:
+  - `chrome-extension/src/background/browser/context.ts` - Enhanced switchTab() method ✅
+- **Technical Implementation**:
+  - Added window focus logic before tab activation
+  - Maintained existing tab activation and page attachment flow
+  - Preserved all error handling and timeout mechanisms
+- **Impact**: Tab management now works seamlessly across all browser windows
+- **Date Completed**: 2025-06-12
 
 ## Recent Changes
 ### Bloom Trading Bot Research ✅ NEWLY COMPLETED

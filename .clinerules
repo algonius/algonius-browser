@@ -113,3 +113,52 @@ flowchart TD
 Note: When triggered by **update memory bank**, I MUST review every memory bank file, even if some don't require updates. Focus particularly on activeContext.md and progress.md as they track current state.
 
 REMEMBER: After every memory reset, I begin completely fresh. The Memory Bank is my only link to previous work. It must be maintained with precision and clarity, as my effectiveness depends entirely on its accuracy.
+
+# Algonius Browser Continuous Optimization Process
+
+Systematic optimization cycle to continuously improve Algonius Browser MCP tools reliability, performance, and user experience.
+
+## Optimization Flow
+
+```mermaid
+flowchart TD
+    Start[Start Cycle] --> CheckIssues[Check GitHub Issues]
+    CheckIssues --> HasCritical{Critical Issues?}
+    
+    HasCritical -->|Yes| SelectIssue[Select Priority Issue]
+    HasCritical -->|No| SystemTest[Website Testing]
+    
+    SystemTest --> LogIssues[Log New Issues]
+    LogIssues --> SelectIssue
+    
+    SelectIssue --> CreateBranch[Create Feature Branch]
+    CreateBranch --> Planning[Create Execution Plan]
+    Planning --> Implementation[Code Implementation]
+    Implementation --> Testing[Local Testing]
+    Testing --> GitOps[Commit & Push to GitHub]
+    GitOps --> CreateMR[Create Merge Request]
+    CreateMR --> CodeReview[Code Review & Approval]
+    CodeReview --> Success{Success?}
+    
+    Success -->|No| SelectIssue
+    Success -->|Yes| MergeMaster[Merge to Master]
+    MergeMaster --> UpdateDocs[Update Documentation]
+    UpdateDocs --> Start
+```
+
+## Process Description
+
+**Development & Deployment Workflow:**
+1. Create feature branch from master
+2. Specify detailed execution plan
+3. Implement the fix/feature
+4. Local testing and validation
+5. Commit and push to GitHub
+6. Create MR, code review, and approval
+7. Merge to master branch
+
+**Priority Levels:** P0 (Critical) > P1 (High) > P2 (Medium) > P3 (Low)
+
+**Test Coverage:** All MCP tools across Basic, Complex, Special, and Technical websites
+
+**Success Metrics:** >95% tool reliability, <5s navigation, <3s operations, graceful error recovery

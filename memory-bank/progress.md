@@ -4,6 +4,23 @@
 
 ### Recent Achievements
 
+#### ✅ Algonius Browser Continuous Optimization Process Update (2025-06-12)
+**Successfully updated the continuous optimization workflow in .clinerules:**
+- **Converted flowchart format**: Changed from `flowchart TD` to proper mermaid code block format
+- **Translated to English**: All content now in English for consistency
+- **Simplified structure**: Replaced detailed bullet points with concise process description
+- **Enhanced execution flow**: Added explicit steps for development workflow:
+  - Create feature branch from master
+  - Create execution plan
+  - Code implementation
+  - Local testing
+  - Commit & push to GitHub
+  - Create merge request
+  - Code review & approval
+  - Merge to master
+- **Streamlined documentation**: Combined verbose sections into focused descriptions
+- **Maintained key information**: Preserved priority levels, test coverage, and success metrics
+
 #### ✅ Manual Bug Report Submission (2025-06-11)
 **Successfully submitted bug report through GitHub UI using browser automation:**
 - **Issue Created**: [Bug]: manage_tabs tool has functionality issues (#18)
@@ -82,14 +99,23 @@
 ### Known Issues & Solutions
 
 #### ⚠️ Current Issues
-1. **manage_tabs Tool**: Tab switching functionality needs investigation (documented in Issue #18)
-2. **Complex Page Handling**: Some dynamic sites require enhanced element detection
-3. **Performance on Large DOMs**: Optimization needed for pages with many elements
+1. **Complex Page Handling**: Some dynamic sites require enhanced element detection
+2. **Performance on Large DOMs**: Optimization needed for pages with many elements
 
 #### 🔄 In Progress Solutions
-1. **Tab Management**: Investigating Chrome Extension tab API integration
-2. **Dynamic Content**: Enhanced waiting mechanisms for AJAX-loaded content
-3. **Performance**: DOM state optimization and intelligent element filtering
+1. **Dynamic Content**: Enhanced waiting mechanisms for AJAX-loaded content
+2. **Performance**: DOM state optimization and intelligent element filtering
+
+#### ✅ Recently Fixed Issues
+1. **manage_tabs Tool Cross-Window Support**: Fixed tab switching to work across multiple browser windows
+   - **Problem**: Tool only worked for tabs in the current window
+   - **Solution**: Added window focus functionality before tab activation
+   - **Implementation**: Enhanced `switchTab()` method in BrowserContext to:
+     - Get target tab's window ID
+     - Focus the window containing the tab using `chrome.windows.update()`
+     - Then activate the tab within that window
+   - **Impact**: Tab management now works seamlessly across all browser windows
+   - **Date Fixed**: 2025-06-12
 
 ### Next Steps
 
