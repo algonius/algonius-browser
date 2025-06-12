@@ -351,6 +351,45 @@ graph TD
 7. **代码审查**: 获得代码审查批准
 8. **合并**: 通过检查后合并到master分支
 
+### 3. GitHub问题管理流程
+
+**问题验证和解决模式:**
+```mermaid
+flowchart TD
+    IssueReport[GitHub Issue报告] --> TestIssue[测试问题复现]
+    TestIssue --> IssueExists{问题是否存在?}
+    
+    IssueExists -->|是| CreateBranch[创建修复分支]
+    IssueExists -->|否| VerificationTest[进行验证测试]
+    
+    VerificationTest --> DocumentEvidence[记录测试证据]
+    DocumentEvidence --> ResolutionComment[添加解决评论]
+    ResolutionComment --> CloseIssue[关闭问题]
+    
+    CreateBranch --> ImplementFix[实现修复]
+    ImplementFix --> TestFix[测试修复]
+    TestFix --> CreatePR[创建PR]
+    CreatePR --> MergeFix[合并修复]
+    MergeFix --> UpdateIssue[更新问题状态]
+    UpdateIssue --> CloseIssue
+```
+
+**问题解决标准流程:**
+1. **验证测试**: 使用当前代码库彻底测试报告的功能
+2. **证据记录**: 记录测试结果和具体证据（如成功的工具输出、响应时间等）
+3. **解决评论**: 在GitHub问题上添加详细评论说明：
+   - 使用的测试方法
+   - 执行的具体测试案例
+   - 功能按预期工作的证据
+   - 原始报告可能的原因（过时版本、环境差异等）
+4. **问题关闭**: 使用适当的解决标签关闭问题
+5. **后续监控**: 监控是否有类似问题的其他报告
+
+**Browser MCP工具问题管理:**
+- **测试环境**: 使用Algonius Browser MCP进行实际测试
+- **证据收集**: 记录工具输出、响应时间、成功/失败状态
+- **文档更新**: 在记忆银行中记录测试结果和解决方案
+
 ### 3. 持续优化流程
 ```mermaid
 flowchart TD
