@@ -117,23 +117,30 @@
 2. **Performance**: DOM state optimization and intelligent element filtering
 
 #### ✅ Recently Fixed Issues
-1. **manage_tabs Tool Cross-Window Support**: Fixed tab switching to work across multiple browser windows
+
+1. **✅ COMPLETED: manage_tabs Tool Cross-Window Support** (2025-06-12)
    - **Problem**: Tool only worked for tabs in the current window
-   - **Solution**: Added window focus functionality before tab activation
-   - **Implementation**: Enhanced `switchTab()` method in BrowserContext to:
-     - Get target tab's window ID
-     - Focus the window containing the tab using `chrome.windows.update()`
-     - Then activate the tab within that window
-   - **Impact**: Tab management now works seamlessly across all browser windows
-   - **Date Fixed**: 2025-06-12
+   - **Root Cause**: `chrome.tabs.update()` only activates tabs within current window
+   - **Solution**: Enhanced cross-window tab switching functionality
+   - **Implementation Details**:
+     - Modified `switchTab()` method in `chrome-extension/src/background/browser/context.ts`
+     - Added window focus step: `chrome.windows.update(targetTab.windowId, { focused: true })`
+     - Updated `getAllTabIds()` to query tabs across all windows instead of just current window
+     - Maintained backwards compatibility with existing functionality
+   - **Testing**: All integration tests passing (`TestManageTabs` - 100% success rate)
+   - **Impact**: Tab management now works seamlessly across multiple browser windows
+   - **Branch**: `fix/manage-tabs-cross-window-support` 
+   - **Commit**: `528d124` - "fix: enhance manage_tabs cross-window support"
+   - **Status**: ✅ **MERGED TO MASTER** - Ready for deployment
 
 ### Next Steps
 
 #### 🎯 Immediate Priorities (Next Sprint)
-1. **Investigate manage_tabs Issue**: Debug tab switching functionality
-2. **Performance Testing**: Benchmark tools on various page types
-3. **Error Handling**: Implement comprehensive error recovery
+1. **✅ COMPLETED: manage_tabs Cross-Window Support** - Fixed and merged
+2. **Performance Testing**: Benchmark tools on various page types and complex websites
+3. **Error Handling**: Implement comprehensive error recovery mechanisms
 4. **Documentation**: Complete user guide and API reference
+5. **Issue Prioritization**: Review GitHub issues and identify next high-priority bugs
 
 #### 📈 Future Enhancements
 1. **Advanced Automation**: Complex workflow automation capabilities

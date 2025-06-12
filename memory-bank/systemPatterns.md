@@ -333,6 +333,52 @@ graph TD
     end
 ```
 
+## Development Workflow
+
+### 1. Git Workflow
+- **不能直接合并到master**: 必须通过Pull Request流程
+- **Pull Request要求**: 需要在 https://github.com/algonius/algonius-browser/pulls 创建PR
+- **GitHub Workflow检查**: PR必须通过GitHub workflow检查后才能合并
+- **分支保护**: master分支受保护，需要正式的代码审查流程
+
+### 2. 开发流程
+1. **创建feature分支**: 从master创建新的feature分支
+2. **代码开发**: 在feature分支上进行开发和测试
+3. **本地测试**: 在本地验证功能和修复
+4. **提交和推送**: 将更改提交并推送到feature分支
+5. **创建PR**: 在GitHub上创建Pull Request
+6. **CI/CD检查**: 等待GitHub workflow检查通过
+7. **代码审查**: 获得代码审查批准
+8. **合并**: 通过检查后合并到master分支
+
+### 3. 持续优化流程
+```mermaid
+flowchart TD
+    Start[开始优化循环] --> CheckIssues[检查GitHub Issues]
+    CheckIssues --> HasCritical{有紧急问题?}
+    
+    HasCritical -->|Yes| SelectIssue[选择优先级问题]
+    HasCritical -->|No| SystemTest[网站功能测试]
+    
+    SystemTest --> LogIssues[记录新问题]
+    LogIssues --> SelectIssue
+    
+    SelectIssue --> CreateBranch[创建Feature分支]
+    CreateBranch --> Planning[制定执行计划]
+    Planning --> Implementation[代码实现]
+    Implementation --> Testing[本地测试]
+    Testing --> GitOps[提交并推送到GitHub]
+    GitOps --> CreatePR[创建Pull Request]
+    CreatePR --> WaitCI[等待CI/CD检查]
+    WaitCI --> CodeReview[代码审查和批准]
+    CodeReview --> Success{检查通过?}
+    
+    Success -->|No| Implementation
+    Success -->|Yes| MergePR[合并PR到Master]
+    MergePR --> UpdateDocs[更新文档]
+    UpdateDocs --> Start
+```
+
 ## Critical Implementation Paths
 
 ### 0. MCP Integration Path

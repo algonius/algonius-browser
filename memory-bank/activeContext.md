@@ -127,3 +127,22 @@ Browser automation research capabilities are now fully validated:
   - **Issue Review**: Use `scroll_page` and DOM state analysis to review existing issues
   - **Alternative to CLI**: Browser automation provides a reliable alternative when GitHub CLI (`gh`) is not installed
   - **Cross-Platform Compatibility**: Browser-based approach works consistently across all operating systems
+
+## 重要工作流程更正 ⚠️
+
+### Git开发工作流程
+- **不能直接合并分支到master**: 必须通过Pull Request流程
+- **PR创建要求**: 需要在 https://github.com/algonius/algonius-browser/pulls 创建Pull Request
+- **GitHub workflow检查**: PR必须通过GitHub workflow和CI/CD检查后才能合并
+- **分支保护**: master分支受保护，需要正式的代码审查和批准流程
+- **开发流程**: feature分支 → 本地开发 → 测试 → 推送 → 创建PR → CI检查 → 代码审查 → 合并
+
+### 持续优化过程修正
+1. **问题分析**: 检查GitHub issues并选择优先级问题
+2. **创建feature分支**: 从master创建新分支进行开发
+3. **代码实现**: 在feature分支上进行开发和本地测试
+4. **提交推送**: 将更改推送到feature分支
+5. **创建PR**: 在GitHub上创建Pull Request (不是直接合并)
+6. **等待检查**: 等待GitHub workflow检查通过
+7. **代码审查**: 获得团队成员的代码审查批准
+8. **合并**: 通过所有检查后合并PR到master分支
