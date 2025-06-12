@@ -230,7 +230,14 @@ export default class BrowserContext {
 
     // Now activate the tab within that window
     await chrome.tabs.update(tabId, { active: true });
-    await this.waitForTabEvents(tabId, { waitForUpdate: false });
+
+    // Wait for both activation AND update events to ensure tab is fully ready
+    // This fixes the P0 bug where tabs weren't fully loaded before being used
+    await this.waitForTabEvents(tabId, {
+      waitForUpdate: true,
+      waitForActivation: true,
+      timeoutMs: 10000, // Increased timeout for complex pages
+    });
 
     const page = await this._getOrCreatePage(await chrome.tabs.get(tabId));
     await this.attachPage(page);

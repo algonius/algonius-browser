@@ -10,22 +10,22 @@ import (
 	"go.uber.org/zap"
 )
 
-// SetValueTool implements a tool for setting values on interactive elements
-type SetValueTool struct {
+// TypeValueTool implements a tool for typing values and simulating keyboard inputs on interactive elements
+type TypeValueTool struct {
 	name        string
 	description string
 	logger      logger.Logger
 	messaging   types.Messaging
 }
 
-// SetValueConfig contains configuration for SetValueTool
-type SetValueConfig struct {
+// TypeValueConfig contains configuration for TypeValueTool
+type TypeValueConfig struct {
 	Logger    logger.Logger
 	Messaging types.Messaging
 }
 
-// NewSetValueTool creates a new SetValueTool
-func NewSetValueTool(config SetValueConfig) (*SetValueTool, error) {
+// NewTypeValueTool creates a new TypeValueTool
+func NewTypeValueTool(config TypeValueConfig) (*TypeValueTool, error) {
 	if config.Logger == nil {
 		return nil, fmt.Errorf("logger is required")
 	}
@@ -34,36 +34,36 @@ func NewSetValueTool(config SetValueConfig) (*SetValueTool, error) {
 		return nil, fmt.Errorf("messaging is required")
 	}
 
-	return &SetValueTool{
-		name:        "set_value",
-		description: "Set values on form input elements (text inputs, selects, checkboxes, textareas, etc.) using flexible targeting. SUPPORTED: input, select, textarea elements and their variants. NOT SUPPORTED: button, div, span or other non-form interactive elements (use click_element for these)",
+	return &TypeValueTool{
+		name:        "type_value",
+		description: "Set values on form input elements and simulate keyboard input with special keys and modifier combinations. Supports all form elements (input, select, textarea) plus advanced keyboard operations.",
 		logger:      config.Logger,
 		messaging:   config.Messaging,
 	}, nil
 }
 
 // GetName returns the tool name
-func (t *SetValueTool) GetName() string {
+func (t *TypeValueTool) GetName() string {
 	return t.name
 }
 
 // GetDescription returns the tool description
-func (t *SetValueTool) GetDescription() string {
+func (t *TypeValueTool) GetDescription() string {
 	return t.description
 }
 
 // GetInputSchema returns the tool input schema
-func (t *SetValueTool) GetInputSchema() interface{} {
+func (t *TypeValueTool) GetInputSchema() interface{} {
 	return map[string]interface{}{
 		"type": "object",
 		"properties": map[string]interface{}{
 			"element_index": map[string]interface{}{
 				"type":        "number",
-				"description": "Index of the form input element to set value (0-based, from DOM state interactive_elements). Only works with form elements like input, select, textarea - not buttons or custom UI components",
+				"description": "Index of the element to type value (0-based, from DOM state interactive_elements).",
 				"minimum":     0,
 			},
 			"value": map[string]interface{}{
-				"description": "Value to set (string, number, boolean, or array for multi-select)",
+				"description": "Value to set (string, number, boolean, array for multi-select). For keyboard operations, use special key syntax like {Enter}, {Tab}, or {Ctrl+A} for modifier combinations.",
 			},
 			"timeout": map[string]interface{}{
 				"type":        "string",
@@ -99,10 +99,10 @@ func (t *SetValueTool) GetInputSchema() interface{} {
 	}
 }
 
-// Execute executes the set_value tool
-func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, error) {
+// Execute executes the type_value tool
+func (t *TypeValueTool) Execute(args map[string]interface{}) (types.ToolResult, error) {
 	startTime := time.Now()
-	t.logger.Info("Executing set_value tool", zap.Any("args", args))
+	t.logger.Info("Executing type_value tool", zap.Any("args", args))
 
 	// Extract and validate element_index
 	elementIndexArg, exists := args["element_index"]
@@ -116,6 +116,12 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		return types.ToolResult{}, fmt.Errorf("value is required")
 	}
 
+	// Auto-detect keyboard mode based on value content
+	keyboardMode := false
+
+	// Auto-detect keyboard mode based on value content
+	keyboardMode = t.containsSpecialKeyPattern(valueArg)
+
 	// Handle timeout parameter
 	timeoutStr := "auto" // default value
 	if timeoutArg, ok := args["timeout"].(string); ok {
@@ -125,7 +131,7 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 	// Parse timeout value with improved intelligence
 	var rpcTimeout int
 	if timeoutStr == "auto" {
-		rpcTimeout = t.calculateIntelligentTimeout(valueArg)
+		rpcTimeout = t.calculateIntelligentTimeout(valueArg, keyboardMode)
 	} else {
 		// Try to parse as number (milliseconds)
 		if parsedTimeout, err := strconv.Atoi(timeoutStr); err == nil {
@@ -213,15 +219,17 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		bufferTime = 60000 // maximum 60 second buffer
 	}
 
-	t.logger.Info("Starting set_value operation",
+	t.logger.Info("Starting type_value operation",
 		zap.Int("element_index", elementIndex),
 		zap.Int("value_length", len(fmt.Sprintf("%v", valueArg))),
+		zap.Bool("keyboard_mode", keyboardMode),
 		zap.Int("calculated_timeout", rpcTimeout),
 		zap.Int("buffer_time", bufferTime))
 
-	t.logger.Debug("Sending set_value RPC request",
+	t.logger.Debug("Sending type_value RPC request",
 		zap.Int("element_index", elementIndex),
 		zap.Any("value", valueArg),
+		zap.Bool("keyboard_mode", keyboardMode),
 		zap.Any("options", options))
 
 	// Send RPC request to the extension with enhanced timeout
@@ -231,7 +239,7 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		zap.Int("total_timeout", rpcTimeout+bufferTime))
 
 	resp, err := t.messaging.RpcRequest(types.RpcRequest{
-		Method: "set_value",
+		Method: "type_value",
 		Params: rpcParams,
 	}, types.RpcOptions{Timeout: rpcTimeout + bufferTime})
 
@@ -242,13 +250,13 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 
 	if err != nil {
 		executionTime := time.Since(startTime).Seconds()
-		t.logger.Error("Error calling set_value RPC", zap.Error(err), zap.Float64("execution_time", executionTime))
-		return types.ToolResult{}, fmt.Errorf("set_value RPC failed: %w", err)
+		t.logger.Error("Error calling type_value RPC", zap.Error(err), zap.Float64("execution_time", executionTime))
+		return types.ToolResult{}, fmt.Errorf("type_value RPC failed: %w", err)
 	}
 
 	if resp.Error != nil {
 		executionTime := time.Since(startTime).Seconds()
-		t.logger.Error("RPC error in set_value",
+		t.logger.Error("RPC error in type_value",
 			zap.Any("rpc_error", resp.Error),
 			zap.Float64("execution_time", executionTime))
 		return types.ToolResult{}, fmt.Errorf("RPC error: %s", resp.Error.Message)
@@ -274,21 +282,21 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 
 	if !success {
 		// Handle failure case
-		message := fmt.Sprintf("Failed to set value on element at index %d", elementIndex)
+		message := fmt.Sprintf("Failed to type value on element at index %d", elementIndex)
 		if msgVal, exists := resultData["message"]; exists {
 			if msgStr, ok := msgVal.(string); ok {
 				message = msgStr
 			}
 		}
 
-		errorCode := "SET_VALUE_FAILED"
+		errorCode := "TYPE_VALUE_FAILED"
 		if codeVal, exists := resultData["error_code"]; exists {
 			if codeStr, ok := codeVal.(string); ok {
 				errorCode = codeStr
 			}
 		}
 
-		t.logger.Warn("Set value failed",
+		t.logger.Warn("Type value failed",
 			zap.Int("element_index", elementIndex),
 			zap.String("error_code", errorCode),
 			zap.String("message", message),
@@ -298,7 +306,7 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 	}
 
 	// Handle success case
-	message := fmt.Sprintf("Successfully set value on element at index %d", elementIndex)
+	message := fmt.Sprintf("Successfully typed value on element at index %d", elementIndex)
 	if msgVal, exists := resultData["message"]; exists {
 		if msgStr, ok := msgVal.(string); ok {
 			message = msgStr
@@ -332,7 +340,14 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		}
 	}
 
-	t.logger.Info("Set value successful",
+	var operationsPerformed []interface{}
+	if opsVal, exists := resultData["operations_performed"]; exists {
+		if ops, ok := opsVal.([]interface{}); ok {
+			operationsPerformed = ops
+		}
+	}
+
+	t.logger.Info("Type value successful",
 		zap.Int("element_index", elementIndex),
 		zap.String("element_type", elementType),
 		zap.String("input_method", inputMethod),
@@ -340,14 +355,18 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		zap.Float64("execution_time", executionTime))
 
 	// Create detailed success response
-	responseText := fmt.Sprintf(`Set Value Result:
+	inputModeText := "standard form input"
+	if keyboardMode || inputMethod == "keyboard" {
+		inputModeText = "keyboard input"
+	}
+
+	responseText := fmt.Sprintf(`Type Value Result:
 - Status: Success
 - Message: %s
 - Element Index: %d
-- Value Set: %v
+- Input Mode: %s
 - Element Type: %s
-- Input Method: %s
-- Execution Time: %.2f seconds`, message, elementIndex, actualValue, elementType, inputMethod, executionTime)
+- Execution Time: %.2f seconds`, message, elementIndex, inputModeText, elementType, executionTime)
 
 	if elementInfo != nil {
 		if text, exists := elementInfo["text"]; exists && text != nil && text != "" {
@@ -361,6 +380,39 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 		}
 	}
 
+	// Include additional details for keyboard operations
+	if len(operationsPerformed) > 0 {
+		responseText += "\n\nKeyboard Operations Performed:"
+		for i, op := range operationsPerformed {
+			if opMap, ok := op.(map[string]interface{}); ok {
+				opType, _ := opMap["type"].(string)
+				switch opType {
+				case "text":
+					if content, ok := opMap["content"].(string); ok {
+						responseText += fmt.Sprintf("\n%d. Typed text: \"%s\"", i+1, content)
+					}
+				case "specialKey":
+					if key, ok := opMap["key"].(string); ok {
+						responseText += fmt.Sprintf("\n%d. Pressed special key: %s", i+1, key)
+					}
+				case "modifierCombination":
+					if key, ok := opMap["key"].(string); ok {
+						if modifiers, ok := opMap["modifiers"].([]interface{}); ok {
+							modStr := ""
+							for i, mod := range modifiers {
+								if i > 0 {
+									modStr += "+"
+								}
+								modStr += fmt.Sprintf("%v", mod)
+							}
+							responseText += fmt.Sprintf("\n%d. Key combination: %s+%s", i+1, modStr, key)
+						}
+					}
+				}
+			}
+		}
+	}
+
 	return types.ToolResult{
 		Content: []types.ToolResultItem{
 			{
@@ -371,23 +423,34 @@ func (t *SetValueTool) Execute(args map[string]interface{}) (types.ToolResult, e
 	}, nil
 }
 
-// calculateIntelligentTimeout calculates optimal timeout based on content length and type
-func (t *SetValueTool) calculateIntelligentTimeout(value interface{}) int {
+// calculateIntelligentTimeout calculates optimal timeout based on content length, type, and keyboard mode
+func (t *TypeValueTool) calculateIntelligentTimeout(value interface{}, keyboardMode bool) int {
 	textLength := len(fmt.Sprintf("%v", value))
 
 	// Enhanced base timeout time
 	baseTimeout := 15000 // 15 seconds base timeout
+
+	// For keyboard operations, increase timeout
+	if keyboardMode {
+		baseTimeout = 20000 // 20 seconds base for keyboard operations
+	}
 
 	// Long text timeout calculation - more conservative estimation
 	if textLength <= 100 {
 		return baseTimeout
 	}
 
-	// For long text, use more conservative calculation
+	// Calculate text factor
 	textFactor := ((textLength - 100) / 30) * 1000 // Beyond 100 chars, add 1 second per 30 characters
-	progressiveBonus := 0
 
-	// Long text needs progressive input, add extra time
+	// Apply different factors based on mode
+	if keyboardMode {
+		// Keyboard mode needs more time per character
+		textFactor = ((textLength - 100) / 20) * 1000 // Beyond 100 chars, add 1 second per 20 characters for keyboard mode
+	}
+
+	// Calculate progressive bonus for very long content
+	progressiveBonus := 0
 	if textLength > 500 {
 		progressiveBonus = 10000 // Extra 10 seconds
 	}
@@ -398,7 +461,13 @@ func (t *SetValueTool) calculateIntelligentTimeout(value interface{}) int {
 		progressiveBonus = 30000 // Extra 30 seconds
 	}
 
-	calculatedTimeout := baseTimeout + textFactor + progressiveBonus
+	// Special keys and modifier combinations require extra time
+	specialKeyFactor := 0
+	if keyboardMode || t.containsSpecialKeyPattern(value) {
+		specialKeyFactor = 5000 // Extra 5 seconds for special key handling
+	}
+
+	calculatedTimeout := baseTimeout + textFactor + progressiveBonus + specialKeyFactor
 
 	// Ensure reasonable bounds (15 seconds - 10 minutes)
 	if calculatedTimeout < 15000 {
@@ -410,10 +479,35 @@ func (t *SetValueTool) calculateIntelligentTimeout(value interface{}) int {
 
 	t.logger.Debug("Calculated intelligent timeout",
 		zap.Int("text_length", textLength),
+		zap.Bool("keyboard_mode", keyboardMode),
 		zap.Int("base_timeout", baseTimeout),
 		zap.Int("text_factor", textFactor),
 		zap.Int("progressive_bonus", progressiveBonus),
+		zap.Int("special_key_factor", specialKeyFactor),
 		zap.Int("final_timeout", calculatedTimeout))
 
 	return calculatedTimeout
+}
+
+// containsSpecialKeyPattern checks if value contains special key patterns like {Enter} or {Ctrl+A}
+func (t *TypeValueTool) containsSpecialKeyPattern(value interface{}) bool {
+	if strVal, ok := value.(string); ok {
+		// Check for pattern {key} or {modifier+key}
+		return strVal != "" && (strVal != value && containsBraces(strVal))
+	}
+	return false
+}
+
+// containsBraces is a helper function to check for special key patterns
+func containsBraces(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] == '{' {
+			for j := i + 1; j < len(s); j++ {
+				if s[j] == '}' {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
