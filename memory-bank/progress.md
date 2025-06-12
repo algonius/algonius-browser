@@ -4,6 +4,16 @@
 
 ### Recent Achievements
 
+#### ✅ Memory Bank Update: GitHub Issue Management via Browser MCP Tools (2025-06-12)
+**Successfully updated activeContext.md to document browser-based GitHub issue management:**
+- **Alternative to CLI**: Documented using browser MCP tools instead of GitHub CLI (`gh`) for issue management
+- **Navigation Method**: Use `navigate_to` tool to access https://github.com/algonius/algonius-browser/issues
+- **Analysis Tools**: Use `get_dom_extra_elements` for issue list analysis and pagination
+- **Issue Creation**: Use `click_element` and `set_value` for creating issues through web interface
+- **Issue Review**: Use `scroll_page` and DOM state analysis for reviewing existing issues
+- **Cross-Platform Benefits**: Browser-based approach works consistently across all operating systems
+- **Reliability**: Provides dependable alternative when GitHub CLI is not available or installed
+
 #### ✅ Algonius Browser Continuous Optimization Process Update (2025-06-12)
 **Successfully updated the continuous optimization workflow in .clinerules:**
 - **Converted flowchart format**: Changed from `flowchart TD` to proper mermaid code block format

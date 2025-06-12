@@ -120,3 +120,10 @@ Browser automation research capabilities are now fully validated:
 - **Research Efficiency**: Automated browsing significantly accelerates information gathering processes
 - **Real-world Validation**: Browser automation tools are production-ready for complex research tasks
 - **Multi-chain Architecture**: Modern DeFi platforms require support for multiple blockchain networks
+- **GitHub Issue Management**: Use browser MCP tools to access GitHub issues at https://github.com/algonius/algonius-browser/issues instead of GitHub CLI
+  - **Navigation Method**: Use `navigate_to` tool to access the GitHub issues page directly
+  - **DOM Analysis**: Use `get_dom_extra_elements` to analyze issue lists and pagination
+  - **Issue Creation**: Use `click_element` and `set_value` for creating new issues through the web interface
+  - **Issue Review**: Use `scroll_page` and DOM state analysis to review existing issues
+  - **Alternative to CLI**: Browser automation provides a reliable alternative when GitHub CLI (`gh`) is not installed
+  - **Cross-Platform Compatibility**: Browser-based approach works consistently across all operating systems
