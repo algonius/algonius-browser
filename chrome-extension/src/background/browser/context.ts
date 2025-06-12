@@ -127,11 +127,11 @@ export default class BrowserContext {
   }
 
   /**
-   * Get all tab IDs from the browser and the current window.
+   * Get all tab IDs from the browser across all windows.
    * @returns A set of tab IDs.
    */
   public async getAllTabIds(): Promise<Set<number>> {
-    const tabs = await chrome.tabs.query({ currentWindow: true });
+    const tabs = await chrome.tabs.query({});
     return new Set(tabs.map(tab => tab.id).filter(id => id !== undefined));
   }
 
@@ -220,6 +220,15 @@ export default class BrowserContext {
   public async switchTab(tabId: number): Promise<Page> {
     logger.info('switchTab', tabId);
 
+    // Get the target tab to find its window
+    const targetTab = await chrome.tabs.get(tabId);
+
+    // Focus the window containing the target tab first
+    if (targetTab.windowId) {
+      await chrome.windows.update(targetTab.windowId, { focused: true });
+    }
+
+    // Now activate the tab within that window
     await chrome.tabs.update(tabId, { active: true });
     await this.waitForTabEvents(tabId, { waitForUpdate: false });
 
