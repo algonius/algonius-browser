@@ -11,7 +11,7 @@ import (
 	"env"
 )
 
-func TestSetValueToolBasicFunctionality(t *testing.T) {
+func TestTypeValueToolBasicFunctionality(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -23,15 +23,15 @@ func TestSetValueToolBasicFunctionality(t *testing.T) {
 	err = testEnv.Setup(ctx)
 	require.NoError(t, err)
 
-	// Track captured set_value requests
-	var capturedSetValueRequests []map[string]interface{}
+	// Track captured type_value requests
+	var capturedTypeValueRequests []map[string]interface{}
 
-	// Register RPC handler for set_value method
-	testEnv.GetNativeMsg().RegisterRpcHandler("set_value", func(params map[string]interface{}) (interface{}, error) {
-		capturedSetValueRequests = append(capturedSetValueRequests, params)
+	// Register RPC handler for type_value method
+	testEnv.GetNativeMsg().RegisterRpcHandler("type_value", func(params map[string]interface{}) (interface{}, error) {
+		capturedTypeValueRequests = append(capturedTypeValueRequests, params)
 		return map[string]interface{}{
 			"success":       true,
-			"message":       "Successfully set value",
+			"message":       "Successfully typed value",
 			"element_index": params["element_index"],
 			"element_type":  "text-input",
 			"input_method":  "type",
@@ -56,7 +56,7 @@ func TestSetValueToolBasicFunctionality(t *testing.T) {
 	err = testEnv.GetMcpClient().Initialize(ctx)
 	require.NoError(t, err)
 
-	// Verify set_value tool is available
+	// Verify type_value tool is available
 	tools, err := testEnv.GetMcpClient().ListTools()
 	if err != nil {
 		t.Logf("ListTools failed (expected if not implemented): %v", err)
@@ -65,26 +65,26 @@ func TestSetValueToolBasicFunctionality(t *testing.T) {
 
 	found := false
 	for _, tool := range tools.Tools {
-		if tool.Name == "set_value" {
+		if tool.Name == "type_value" {
 			found = true
-			assert.Contains(t, tool.Description, "Set values on interactive elements")
-			t.Log("Found set_value tool with correct description")
+			assert.Contains(t, tool.Description, "Set values on form input elements")
+			t.Log("Found type_value tool with correct description")
 			break
 		}
 	}
 
 	if !found {
-		t.Log("set_value tool not found (expected if not implemented)")
+		t.Log("type_value tool not found (expected if not implemented)")
 		return
 	}
 
-	// Test basic set value operation
+	// Test basic text input operation
 	t.Run("successful text input", func(t *testing.T) {
 		// Clear previous requests
-		capturedSetValueRequests = nil
+		capturedTypeValueRequests = nil
 
-		// Execute set_value tool
-		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
+		// Execute type_value tool
+		result, err := testEnv.GetMcpClient().CallTool("type_value", map[string]interface{}{
 			"element_index": 0,
 			"value":         "Hello World",
 			"options": map[string]interface{}{
@@ -99,21 +99,81 @@ func TestSetValueToolBasicFunctionality(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		// Verify RPC call was made with correct parameters
-		require.Len(t, capturedSetValueRequests, 1, "Should have captured exactly one set_value request")
+		require.Len(t, capturedTypeValueRequests, 1, "Should have captured exactly one type_value request")
 
-		capturedParams := capturedSetValueRequests[0]
+		capturedParams := capturedTypeValueRequests[0]
 		assert.Equal(t, float64(0), capturedParams["element_index"])
 		assert.Equal(t, "Hello World", capturedParams["value"])
+
+		// Verify keyboard_mode is NOT present in parameters (it's auto-detected)
+		_, keyboardModePresent := capturedParams["keyboard_mode"]
+		assert.False(t, keyboardModePresent, "keyboard_mode should not be present in parameters")
 
 		options := capturedParams["options"].(map[string]interface{})
 		assert.Equal(t, true, options["clear_first"])
 		assert.Equal(t, 1.0, options["wait_after"])
 
-		t.Log("Successfully tested basic text input setting")
+		t.Log("Successfully tested basic text input")
+	})
+
+	// Test special key input operation
+	t.Run("special key input", func(t *testing.T) {
+		// Clear previous requests
+		capturedTypeValueRequests = nil
+
+		// Execute type_value tool with special key syntax
+		result, err := testEnv.GetMcpClient().CallTool("type_value", map[string]interface{}{
+			"element_index": 0,
+			"value":         "Test{Enter}",
+		})
+		require.NoError(t, err)
+		assert.False(t, result.IsError, "Tool execution should not result in error")
+
+		// Wait for RPC call to be processed
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify RPC call was made with correct parameters
+		require.Len(t, capturedTypeValueRequests, 1, "Should have captured exactly one type_value request")
+
+		capturedParams := capturedTypeValueRequests[0]
+		assert.Equal(t, float64(0), capturedParams["element_index"])
+		assert.Equal(t, "Test{Enter}", capturedParams["value"])
+
+		// Verify keyboard_mode is NOT present in parameters (auto-detected based on special key)
+		_, keyboardModePresent := capturedParams["keyboard_mode"]
+		assert.False(t, keyboardModePresent, "keyboard_mode should not be present in parameters")
+
+		t.Log("Successfully tested special key input")
+	})
+
+	// Test modifier key combination
+	t.Run("modifier key combination", func(t *testing.T) {
+		// Clear previous requests
+		capturedTypeValueRequests = nil
+
+		// Execute type_value tool with modifier key syntax
+		result, err := testEnv.GetMcpClient().CallTool("type_value", map[string]interface{}{
+			"element_index": 0,
+			"value":         "{Ctrl+A}text",
+		})
+		require.NoError(t, err)
+		assert.False(t, result.IsError, "Tool execution should not result in error")
+
+		// Wait for RPC call to be processed
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify RPC call was made with correct parameters
+		require.Len(t, capturedTypeValueRequests, 1, "Should have captured exactly one type_value request")
+
+		capturedParams := capturedTypeValueRequests[0]
+		assert.Equal(t, float64(0), capturedParams["element_index"])
+		assert.Equal(t, "{Ctrl+A}text", capturedParams["value"])
+
+		t.Log("Successfully tested modifier key combination")
 	})
 }
 
-func TestSetValueToolParameterValidation(t *testing.T) {
+func TestTypeValueToolParameterValidation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -126,7 +186,7 @@ func TestSetValueToolParameterValidation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Register RPC handler (won't be called for invalid parameters)
-	testEnv.GetNativeMsg().RegisterRpcHandler("set_value", func(params map[string]interface{}) (interface{}, error) {
+	testEnv.GetNativeMsg().RegisterRpcHandler("type_value", func(params map[string]interface{}) (interface{}, error) {
 		return map[string]interface{}{
 			"success": true,
 		}, nil
@@ -136,7 +196,7 @@ func TestSetValueToolParameterValidation(t *testing.T) {
 	err = testEnv.GetMcpClient().Initialize(ctx)
 	require.NoError(t, err)
 
-	// Verify set_value tool is available
+	// Verify type_value tool is available
 	tools, err := testEnv.GetMcpClient().ListTools()
 	if err != nil {
 		t.Logf("ListTools failed: %v", err)
@@ -145,14 +205,14 @@ func TestSetValueToolParameterValidation(t *testing.T) {
 
 	found := false
 	for _, tool := range tools.Tools {
-		if tool.Name == "set_value" {
+		if tool.Name == "type_value" {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Log("set_value tool not found")
+		t.Log("type_value tool not found")
 		return
 	}
 
@@ -207,11 +267,30 @@ func TestSetValueToolParameterValidation(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "valid_parameters_with_special_key",
+			args: map[string]interface{}{
+				"element_index": 0,
+				"value":         "test{Enter}",
+				"options": map[string]interface{}{
+					"clear_first": true,
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "valid_parameters_with_modifier_key",
+			args: map[string]interface{}{
+				"element_index": 0,
+				"value":         "{Ctrl+V}",
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := testEnv.GetMcpClient().CallTool("set_value", tc.args)
+			result, err := testEnv.GetMcpClient().CallTool("type_value", tc.args)
 
 			if tc.expectError {
 				// For parameter validation errors, we expect either an error or IsError=true
@@ -227,7 +306,7 @@ func TestSetValueToolParameterValidation(t *testing.T) {
 	}
 }
 
-func TestSetValueToolDifferentElementTypes(t *testing.T) {
+func TestTypeValueToolDifferentElementTypes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -243,7 +322,7 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 	var capturedRequests []map[string]interface{}
 
 	// Register RPC handler that simulates different element types
-	testEnv.GetNativeMsg().RegisterRpcHandler("set_value", func(params map[string]interface{}) (interface{}, error) {
+	testEnv.GetNativeMsg().RegisterRpcHandler("type_value", func(params map[string]interface{}) (interface{}, error) {
 		capturedRequests = append(capturedRequests, params)
 
 		elementIndex := params["element_index"]
@@ -289,7 +368,7 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 	err = testEnv.GetMcpClient().Initialize(ctx)
 	require.NoError(t, err)
 
-	// Verify set_value tool is available
+	// Verify type_value tool is available
 	tools, err := testEnv.GetMcpClient().ListTools()
 	if err != nil {
 		t.Logf("ListTools failed: %v", err)
@@ -298,14 +377,14 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 
 	found := false
 	for _, tool := range tools.Tools {
-		if tool.Name == "set_value" {
+		if tool.Name == "type_value" {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Log("set_value tool not found")
+		t.Log("type_value tool not found")
 		return
 	}
 
@@ -345,7 +424,7 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 			// Clear previous requests
 			capturedRequests = nil
 
-			result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
+			result, err := testEnv.GetMcpClient().CallTool("type_value", map[string]interface{}{
 				"element_index": tc.target,
 				"value":         tc.value,
 			})
@@ -366,7 +445,7 @@ func TestSetValueToolDifferentElementTypes(t *testing.T) {
 	}
 }
 
-func TestSetValueToolWithOptions(t *testing.T) {
+func TestTypeValueToolWithOptions(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -382,7 +461,7 @@ func TestSetValueToolWithOptions(t *testing.T) {
 	var capturedRequests []map[string]interface{}
 
 	// Register RPC handler for options testing
-	testEnv.GetNativeMsg().RegisterRpcHandler("set_value", func(params map[string]interface{}) (interface{}, error) {
+	testEnv.GetNativeMsg().RegisterRpcHandler("type_value", func(params map[string]interface{}) (interface{}, error) {
 		capturedRequests = append(capturedRequests, params)
 
 		return map[string]interface{}{
@@ -405,7 +484,7 @@ func TestSetValueToolWithOptions(t *testing.T) {
 	err = testEnv.GetMcpClient().Initialize(ctx)
 	require.NoError(t, err)
 
-	// Verify set_value tool is available
+	// Verify type_value tool is available
 	tools, err := testEnv.GetMcpClient().ListTools()
 	if err != nil {
 		t.Logf("ListTools failed: %v", err)
@@ -414,14 +493,14 @@ func TestSetValueToolWithOptions(t *testing.T) {
 
 	found := false
 	for _, tool := range tools.Tools {
-		if tool.Name == "set_value" {
+		if tool.Name == "type_value" {
 			found = true
 			break
 		}
 	}
 
 	if !found {
-		t.Log("set_value tool not found")
+		t.Log("type_value tool not found")
 		return
 	}
 
@@ -430,7 +509,7 @@ func TestSetValueToolWithOptions(t *testing.T) {
 		// Clear previous requests
 		capturedRequests = nil
 
-		result, err := testEnv.GetMcpClient().CallTool("set_value", map[string]interface{}{
+		result, err := testEnv.GetMcpClient().CallTool("type_value", map[string]interface{}{
 			"element_index": 5,
 			"value":         "John Doe",
 			"options": map[string]interface{}{
@@ -461,7 +540,153 @@ func TestSetValueToolWithOptions(t *testing.T) {
 	})
 }
 
-func TestSetValueToolSchema(t *testing.T) {
+func TestTypeValueToolSpecialKeyHandling(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	// Setup test environment
+	testEnv, err := env.NewMcpHostTestEnvironment(nil)
+	require.NoError(t, err)
+	defer testEnv.Cleanup()
+
+	err = testEnv.Setup(ctx)
+	require.NoError(t, err)
+
+	// Track captured requests with special keys
+	var capturedRequests []map[string]interface{}
+
+	// Register RPC handler for special key testing
+	testEnv.GetNativeMsg().RegisterRpcHandler("type_value", func(params map[string]interface{}) (interface{}, error) {
+		capturedRequests = append(capturedRequests, params)
+
+		// Simulate detailed keyboard operation report
+		operations := []interface{}{}
+		value := ""
+		if val, ok := params["value"].(string); ok {
+			value = val
+		}
+
+		// Detect special keys and report operations
+		if value == "{Enter}" {
+			operations = append(operations, map[string]interface{}{
+				"type": "specialKey",
+				"key":  "Enter",
+			})
+		} else if value == "{Tab}" {
+			operations = append(operations, map[string]interface{}{
+				"type": "specialKey",
+				"key":  "Tab",
+			})
+		} else if value == "{Ctrl+A}" {
+			operations = append(operations, map[string]interface{}{
+				"type":      "modifierCombination",
+				"key":       "a",
+				"modifiers": []string{"Control"},
+			})
+		} else if value == "hello{Enter}world" {
+			operations = append(operations, map[string]interface{}{
+				"type":    "text",
+				"content": "hello",
+			})
+			operations = append(operations, map[string]interface{}{
+				"type": "specialKey",
+				"key":  "Enter",
+			})
+			operations = append(operations, map[string]interface{}{
+				"type":    "text",
+				"content": "world",
+			})
+		} else {
+			operations = append(operations, map[string]interface{}{
+				"type":    "text",
+				"content": value,
+			})
+		}
+
+		return map[string]interface{}{
+			"success":              true,
+			"element_index":        params["element_index"],
+			"element_type":         "text-input",
+			"input_method":         "keyboard",
+			"actual_value":         params["value"],
+			"operations_performed": operations,
+		}, nil
+	})
+
+	// Initialize MCP client
+	err = testEnv.GetMcpClient().Initialize(ctx)
+	require.NoError(t, err)
+
+	// Verify type_value tool is available
+	tools, err := testEnv.GetMcpClient().ListTools()
+	if err != nil {
+		t.Logf("ListTools failed: %v", err)
+		return
+	}
+
+	found := false
+	for _, tool := range tools.Tools {
+		if tool.Name == "type_value" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Log("type_value tool not found")
+		return
+	}
+
+	// Test special key handling
+	specialKeyTestCases := []struct {
+		name  string
+		value string
+	}{
+		{
+			name:  "enter_key",
+			value: "{Enter}",
+		},
+		{
+			name:  "tab_key",
+			value: "{Tab}",
+		},
+		{
+			name:  "ctrl_a_combination",
+			value: "{Ctrl+A}",
+		},
+		{
+			name:  "mixed_content",
+			value: "hello{Enter}world",
+		},
+	}
+
+	for _, tc := range specialKeyTestCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Clear previous requests
+			capturedRequests = nil
+
+			result, err := testEnv.GetMcpClient().CallTool("type_value", map[string]interface{}{
+				"element_index": 0,
+				"value":         tc.value,
+			})
+
+			require.NoError(t, err)
+			assert.False(t, result.IsError, "Tool execution should not result in error")
+
+			// Wait for RPC call to be processed
+			time.Sleep(50 * time.Millisecond)
+
+			// Verify RPC call was made
+			require.Len(t, capturedRequests, 1, "Should have captured the request")
+			assert.Equal(t, float64(0), capturedRequests[0]["element_index"])
+			assert.Equal(t, tc.value, capturedRequests[0]["value"])
+
+			t.Logf("Successfully tested special key handling for %s", tc.name)
+		})
+	}
+}
+
+func TestTypeValueToolSchema(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
@@ -484,15 +709,15 @@ func TestSetValueToolSchema(t *testing.T) {
 		return
 	}
 
-	// Find set_value tool
-	var setValueTool *struct {
+	// Find type_value tool
+	var typeValueTool *struct {
 		Name        string
 		Description string
 	}
 
 	for _, tool := range tools.Tools {
-		if tool.Name == "set_value" {
-			setValueTool = &struct {
+		if tool.Name == "type_value" {
+			typeValueTool = &struct {
 				Name        string
 				Description string
 			}{
@@ -503,16 +728,16 @@ func TestSetValueToolSchema(t *testing.T) {
 		}
 	}
 
-	if setValueTool == nil {
-		t.Log("set_value tool not found")
+	if typeValueTool == nil {
+		t.Log("type_value tool not found")
 		return
 	}
 
 	// Validate tool schema
 	t.Run("tool_schema_validation", func(t *testing.T) {
-		assert.Equal(t, "set_value", setValueTool.Name)
-		assert.Contains(t, setValueTool.Description, "Set values")
+		assert.Equal(t, "type_value", typeValueTool.Name)
+		assert.Contains(t, typeValueTool.Description, "Set values on form input elements")
 
-		t.Log("Successfully validated set_value tool schema")
+		t.Log("Successfully validated type_value tool schema")
 	})
 }

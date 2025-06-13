@@ -1,8 +1,8 @@
 /**
- * Set Value Handler for MCP Host RPC Requests
+ * Type Value Handler for MCP Host RPC Requests
  *
- * This file implements the set_value RPC method handler for the browser extension.
- * It responds to requests from the MCP Host that need to set values on interactive elements.
+ * This file implements the type_value RPC method handler for the browser extension.
+ * It responds to requests from the MCP Host that need to type text or simulate keyboard input on interactive elements.
  */
 
 import type BrowserContext from '../browser/context';
@@ -10,6 +10,17 @@ import { createLogger } from '../log';
 import type { RpcHandler, RpcRequest, RpcResponse } from '../mcp/host-manager';
 import type { DOMElementNode } from '../dom/views';
 import { findElementByHighlightIndex } from './dom-utils';
+import { type KeyInput } from 'puppeteer-core/lib/esm/puppeteer/puppeteer-core-browser.js';
+
+/**
+ * Interface for keyboard operation
+ */
+interface KeyboardOperation {
+  type: 'text' | 'specialKey' | 'modifierCombination';
+  content?: string;
+  key?: string;
+  modifiers?: string[];
+}
 
 /**
  * Interface for input strategy determination
@@ -21,29 +32,94 @@ interface InputStrategy {
 }
 
 /**
- * Handler for the 'set_value' RPC method
+ * Handler for the 'type_value' RPC method
  *
- * This handler processes value setting requests from the MCP Host and performs
- * intelligent value setting on interactive elements with flexible targeting.
+ * This handler processes typing requests from the MCP Host and performs
+ * intelligent value setting and keyboard input simulation on interactive elements.
  */
-export class SetValueHandler {
-  private logger = createLogger('SetValueHandler');
+export class TypeValueHandler {
+  private logger = createLogger('TypeValueHandler');
 
   /**
-   * Creates a new SetValueHandler instance
+   * Special key mappings for standardized keyboard input
+   */
+  private readonly specialKeyMap: Record<string, string> = {
+    // Navigation keys
+    enter: 'Enter',
+    tab: 'Tab',
+    esc: 'Escape',
+    escape: 'Escape',
+    backspace: 'Backspace',
+    delete: 'Delete',
+    del: 'Delete',
+    space: ' ',
+
+    // Arrow keys
+    up: 'ArrowUp',
+    down: 'ArrowDown',
+    left: 'ArrowLeft',
+    right: 'ArrowRight',
+    arrowup: 'ArrowUp',
+    arrowdown: 'ArrowDown',
+    arrowleft: 'ArrowLeft',
+    arrowright: 'ArrowRight',
+
+    // Navigation
+    home: 'Home',
+    end: 'End',
+    pageup: 'PageUp',
+    pagedown: 'PageDown',
+
+    // Function keys
+    f1: 'F1',
+    f2: 'F2',
+    f3: 'F3',
+    f4: 'F4',
+    f5: 'F5',
+    f6: 'F6',
+    f7: 'F7',
+    f8: 'F8',
+    f9: 'F9',
+    f10: 'F10',
+    f11: 'F11',
+    f12: 'F12',
+
+    // Editing keys
+    insert: 'Insert',
+    ins: 'Insert',
+  };
+
+  /**
+   * Modifier key mappings
+   */
+  private readonly modifierKeyMap: Record<string, string> = {
+    ctrl: 'Control',
+    control: 'Control',
+    shift: 'Shift',
+    alt: 'Alt',
+    option: 'Alt',
+    cmd: 'Meta',
+    command: 'Meta',
+    meta: 'Meta',
+    win: 'Meta',
+    windows: 'Meta',
+  };
+
+  /**
+   * Creates a new TypeValueHandler instance
    *
    * @param browserContext The browser context for accessing page interaction methods
    */
   constructor(private readonly browserContext: BrowserContext) {}
 
   /**
-   * Handle a set_value RPC request
+   * Handle a type_value RPC request
    *
-   * @param request RPC request with value setting parameters
-   * @returns Promise resolving to an RPC response confirming the value setting action
+   * @param request RPC request with typing parameters
+   * @returns Promise resolving to an RPC response confirming the typing action
    */
-  public handleSetValue: RpcHandler = async (request: RpcRequest): Promise<RpcResponse> => {
-    this.logger.debug('Received set_value request:', request);
+  public handleTypeValue: RpcHandler = async (request: RpcRequest): Promise<RpcResponse> => {
+    this.logger.debug('Received type_value request:', request);
 
     try {
       const { element_index, value, options = {} } = request.params || {};
@@ -126,6 +202,39 @@ export class SetValueHandler {
         };
       }
 
+      // Auto-detect or use explicit keyboard mode
+      const useKeyboardMode = this.shouldUseKeyboardMode(value);
+
+      // Handle keyboard mode for special key input
+      if (useKeyboardMode) {
+        const result = await this.handleKeyboardInput(currentPage, elementNode!, value, finalOptions);
+
+        // Use optimized wait time
+        const optimalWait = this.getOptimalWaitTime('keyboard', finalOptions.wait_after * 1000);
+        await new Promise(resolve => setTimeout(resolve, optimalWait));
+
+        return {
+          result: {
+            success: true,
+            message: `Successfully executed keyboard input on element`,
+            element_index,
+            element_type: elementNode!.tagName?.toLowerCase() || 'unknown',
+            input_method: 'keyboard',
+            operations_performed: result.operationsPerformed,
+            element_info: {
+              tag_name: elementNode!.tagName,
+              text: elementNode!.getAllTextTillNextClickableElement() || '',
+              placeholder: elementNode!.attributes.placeholder || '',
+              name: elementNode!.attributes.name || '',
+              id: elementNode!.attributes.id || '',
+              type: elementNode!.attributes.type || '',
+            },
+            options_used: finalOptions,
+          },
+        };
+      }
+
+      // Standard value setting mode for non-keyboard input
       // Determine input strategy
       const strategy = this.determineInputStrategy(elementNode!, value);
       if (!strategy.canHandle) {
@@ -186,7 +295,7 @@ export class SetValueHandler {
         options_used: finalOptions,
       };
 
-      this.logger.debug('Set value completed:', result);
+      this.logger.debug('Type value completed:', result);
 
       return {
         result,
@@ -194,8 +303,8 @@ export class SetValueHandler {
     } catch (error) {
       this.logger.error('Error setting value:', error);
 
-      let errorCode = 'SET_VALUE_FAILED';
-      let errorMessage = 'Failed to set value';
+      let errorCode = 'TYPE_VALUE_FAILED';
+      let errorMessage = 'Failed to type value';
 
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -228,6 +337,213 @@ export class SetValueHandler {
       };
     }
   };
+
+  /**
+   * Determine if keyboard mode should be used
+   */
+  private shouldUseKeyboardMode(value: any): boolean {
+    // Auto-detect keyboard mode based on content
+    if (typeof value === 'string') {
+      // Check for special key pattern {key} or modifier combinations like {Ctrl+A}
+      const keyPattern = /{([^}]+)}/g;
+      const hasSpecialKeys = keyPattern.test(value);
+
+      // Debug log to help identify the issue
+      console.log('Auto-detecting keyboard mode:', {
+        value,
+        hasSpecialKeys,
+      });
+
+      return hasSpecialKeys;
+    }
+
+    return false;
+  }
+
+  /**
+   * Parse keyboard input into operations
+   */
+  private parseKeyboardInput(value: string): KeyboardOperation[] {
+    const operations: KeyboardOperation[] = [];
+    let currentText = '';
+
+    // Regex pattern for detecting special keys
+    const keyPattern = /{([^}]+)}/g;
+    let lastIndex = 0;
+    let match;
+
+    // Process input value to find special keys and text
+    while ((match = keyPattern.exec(value)) !== null) {
+      // Add any text before this special key
+      if (match.index > lastIndex) {
+        currentText += value.substring(lastIndex, match.index);
+      }
+
+      if (currentText.length > 0) {
+        operations.push({ type: 'text', content: currentText });
+        currentText = '';
+      }
+
+      // Process the special key or key combination
+      const keyCommand = match[1].trim();
+      if (this.isModifierCombination(keyCommand)) {
+        operations.push(this.parseModifierCombination(keyCommand));
+      } else {
+        operations.push({
+          type: 'specialKey',
+          key: this.mapSpecialKey(keyCommand),
+        });
+      }
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Add any remaining text after the last special key
+    if (lastIndex < value.length) {
+      currentText += value.substring(lastIndex);
+    }
+
+    if (currentText.length > 0) {
+      operations.push({ type: 'text', content: currentText });
+    }
+
+    return operations;
+  }
+
+  /**
+   * Check if a key command is a modifier combination (e.g., Ctrl+A)
+   */
+  private isModifierCombination(keyCommand: string): boolean {
+    // Check for the + character but not at the beginning or end
+    return /^.+\+.+$/.test(keyCommand);
+  }
+
+  /**
+   * Parse a modifier combination into modifiers and key
+   */
+  private parseModifierCombination(keyCommand: string): KeyboardOperation {
+    const parts = keyCommand.split('+').map(part => part.trim());
+    const key = parts.pop() || '';
+    const modifiers = parts.map(mod => this.mapModifierKey(mod));
+
+    return {
+      type: 'modifierCombination',
+      key: this.mapSpecialKey(key),
+      modifiers,
+    };
+  }
+
+  /**
+   * Map special key name to actual key input
+   */
+  private mapSpecialKey(keyName: string): string {
+    const normalized = keyName.trim().toLowerCase();
+    return this.specialKeyMap[normalized] || keyName;
+  }
+
+  /**
+   * Map modifier key name to actual modifier name
+   */
+  private mapModifierKey(modifierName: string): string {
+    const normalized = modifierName.trim().toLowerCase();
+    return this.modifierKeyMap[normalized] || modifierName;
+  }
+
+  /**
+   * Execute keyboard operations on an element or page
+   */
+  private async handleKeyboardInput(
+    page: any,
+    elementNode: DOMElementNode,
+    value: string,
+    options: any,
+  ): Promise<{ operationsPerformed: any[] }> {
+    // Get element handle
+    const elementHandle = await page.locateElement(elementNode);
+    if (!elementHandle) {
+      throw new Error(`Element could not be located on the page`);
+    }
+
+    // Focus the element first
+    await elementHandle.focus();
+
+    // Clear content if requested and element supports it
+    if (options.clear_first) {
+      const canClear = await elementHandle.evaluate((el: HTMLElement) => {
+        return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el.isContentEditable;
+      });
+
+      if (canClear) {
+        await elementHandle.evaluate((el: HTMLElement) => {
+          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+            el.value = '';
+          } else if (el.isContentEditable) {
+            el.textContent = '';
+          }
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      }
+    }
+
+    // Parse keyboard operations
+    const operations = this.parseKeyboardInput(value);
+    const operationsPerformed = [];
+
+    // Execute each operation
+    for (const op of operations) {
+      try {
+        switch (op.type) {
+          case 'text':
+            if (op.content && op.content.length > 0) {
+              await page._puppeteerPage.keyboard.type(op.content);
+              operationsPerformed.push({ type: 'text', content: op.content });
+            }
+            break;
+
+          case 'specialKey':
+            if (op.key) {
+              await page._puppeteerPage.keyboard.press(op.key as KeyInput);
+              operationsPerformed.push({ type: 'specialKey', key: op.key });
+            }
+            break;
+
+          case 'modifierCombination':
+            if (op.modifiers && op.modifiers.length > 0 && op.key) {
+              // Press all modifiers
+              for (const modifier of op.modifiers) {
+                await page._puppeteerPage.keyboard.down(modifier as KeyInput);
+              }
+
+              // Press and release the main key
+              await page._puppeteerPage.keyboard.press(op.key as KeyInput);
+
+              // Release all modifiers in reverse order
+              for (const modifier of [...op.modifiers].reverse()) {
+                await page._puppeteerPage.keyboard.up(modifier as KeyInput);
+              }
+
+              operationsPerformed.push({
+                type: 'modifierCombination',
+                modifiers: op.modifiers,
+                key: op.key,
+              });
+            }
+            break;
+        }
+
+        // Small delay between operations for stability
+        await new Promise(resolve => setTimeout(resolve, 50));
+      } catch (error) {
+        this.logger.error(`Error executing keyboard operation: ${JSON.stringify(op)}`, error);
+        throw new Error(`Keyboard operation failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    // Wait for page stability
+    await page.waitForPageAndFramesLoad();
+
+    return { operationsPerformed };
+  }
 
   /**
    * Calculate optimized operation timeout based on input parameters
@@ -277,6 +593,7 @@ export class SetValueHandler {
       'multi-select': 1.0,
       checkbox: 0.5,
       radio: 0.5,
+      keyboard: 1.8, // Keyboard operations typically need more time
     };
 
     const typeFactor = typeFactors[elementType] || 1.0;
@@ -312,88 +629,10 @@ export class SetValueHandler {
       checkbox: 0.3, // Checkbox is very fast
       radio: 0.3, // Radio button is very fast
       textarea: 0.8, // Textarea is medium speed
+      keyboard: 1.2, // Keyboard operations need more time
     } as any;
 
     return Math.min(baseWait * (multipliers[elementType] || 1), 3000); // Maximum 3 seconds
-  }
-
-  /**
-   * Locate element using either index or description
-   */
-  private async locateElement(
-    page: any,
-    target: number | string,
-    targetType: string,
-  ): Promise<{
-    success: boolean;
-    elementNode?: DOMElementNode;
-    elementIndex?: number;
-    error?: string;
-  }> {
-    // Handle numeric index targeting
-    if (targetType === 'index' || typeof target === 'number') {
-      const elementIndex = typeof target === 'number' ? target : parseInt(target as string);
-      const elementNode = await findElementByHighlightIndex(page, elementIndex);
-
-      if (!elementNode) {
-        return {
-          success: false,
-          error: `Element with highlightIndex ${elementIndex} not found in DOM state`,
-        };
-      }
-
-      return {
-        success: true,
-        elementNode,
-        elementIndex,
-      };
-    }
-
-    // Handle description-based targeting
-    const description = target as string;
-    const selectorMap = page.getSelectorMap();
-
-    for (const [index, element] of selectorMap.entries()) {
-      if (this.matchesTextDescription(element, description)) {
-        return {
-          success: true,
-          elementNode: element,
-          elementIndex: index,
-        };
-      }
-    }
-
-    return {
-      success: false,
-      error: `No element found matching description: "${description}"`,
-    };
-  }
-
-  /**
-   * Check if element matches text description using multiple strategies (optimized)
-   */
-  private matchesTextDescription(element: DOMElementNode, description: string): boolean {
-    const desc = description.toLowerCase().trim();
-
-    // Early exit optimization - check most common attributes first
-    const quickChecks = [element.attributes.placeholder, element.attributes.name, element.attributes.id];
-
-    for (const attr of quickChecks) {
-      if (attr && attr.toLowerCase().includes(desc)) return true;
-    }
-
-    // Then check text content (slower operation)
-    const text = element.getAllTextTillNextClickableElement();
-    if (text && text.toLowerCase().includes(desc)) return true;
-
-    // Finally check other attributes
-    const otherAttrs = ['aria-label', 'title', 'value'];
-    for (const attrName of otherAttrs) {
-      const attr = element.attributes[attrName];
-      if (attr && attr.toLowerCase().includes(desc)) return true;
-    }
-
-    return false;
   }
 
   /**

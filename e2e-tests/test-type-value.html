@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Type Value Tool Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        .result {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            min-height: 20px;
+        }
+        button {
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input, textarea {
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 300px;
+        }
+        select {
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 300px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .keyboard-shortcut {
+            background-color: #e9e9e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .log {
+            font-family: monospace;
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Type Value Tool Test Page</h1>
+    <p>This page is designed to test the Algonius Browser MCP <code>type_value</code> tool features.</p>
+    
+    <div class="test-section">
+        <h2>1. Basic Text Input</h2>
+        <label for="basic-input">Simple Text Input:</label>
+        <input type="text" id="basic-input" placeholder="Type here...">
+        <div class="result" id="basic-input-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Special Keys Test</h2>
+        <label for="special-keys-input">Testing Special Keys (try {Enter}, {Tab}, {ArrowUp}):</label>
+        <input type="text" id="special-keys-input" placeholder="Type here...">
+        <div class="result" id="special-keys-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Modifier Key Combinations</h2>
+        <label for="modifier-keys-input">Testing Modifiers (try {Ctrl+A}, {Shift+ArrowRight}):</label>
+        <input type="text" id="modifier-keys-input" placeholder="Type here...">
+        <div class="result" id="modifier-keys-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Long Text Input</h2>
+        <label for="long-text-input">Long Text Input (testing typing speed):</label>
+        <textarea id="long-text-input" rows="5" placeholder="Type a long text here..."></textarea>
+        <div class="result" id="long-text-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. Select Element</h2>
+        <label for="select-element">Selection Test:</label>
+        <select id="select-element">
+            <option value="">Please select...</option>
+            <option value="option1">Option 1</option>
+            <option value="option2">Option 2</option>
+            <option value="option3">Option 3</option>
+        </select>
+        <div class="result" id="select-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>6. Checkbox Element</h2>
+        <label for="checkbox-element">
+            <input type="checkbox" id="checkbox-element">
+            Check me
+        </label>
+        <div class="result" id="checkbox-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>7. Content Editable</h2>
+        <label for="content-editable">Editable Div:</label>
+        <div id="content-editable" contenteditable="true" style="border:1px solid #ddd; padding:10px; min-height:50px; border-radius:4px;">
+            Click to edit this text...
+        </div>
+        <div class="result" id="contenteditable-result"></div>
+    </div>
+    
+    <div class="log" id="event-log">
+        <strong>Event Log:</strong>
+    </div>
+    
+    <script>
+        // Function to log events
+        function logEvent(element, event, detail = '') {
+            const log = document.getElementById('event-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const message = `[${timestamp}] ${element} - ${event} ${detail}`;
+            log.innerHTML = log.innerHTML + '<br>' + message;
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Basic input
+        const basicInput = document.getElementById('basic-input');
+        basicInput.addEventListener('input', function() {
+            document.getElementById('basic-input-result').textContent = `Value: ${this.value}`;
+            logEvent('Basic Input', 'input', `value: "${this.value}"`);
+        });
+        basicInput.addEventListener('keydown', function(e) {
+            logEvent('Basic Input', 'keydown', `key: ${e.key}, code: ${e.code}`);
+        });
+        
+        // Special keys input
+        const specialKeysInput = document.getElementById('special-keys-input');
+        specialKeysInput.addEventListener('input', function() {
+            document.getElementById('special-keys-result').textContent = `Value: ${this.value}`;
+            logEvent('Special Keys', 'input', `value: "${this.value}"`);
+        });
+        specialKeysInput.addEventListener('keydown', function(e) {
+            logEvent('Special Keys', 'keydown', `key: ${e.key}, code: ${e.code}`);
+            if (e.key === 'Enter') {
+                document.getElementById('special-keys-result').textContent += ' (Enter pressed!)';
+            }
+            if (e.key === 'Tab') {
+                e.preventDefault(); // Prevent focus change
+                document.getElementById('special-keys-result').textContent += ' (Tab pressed!)';
+            }
+        });
+        
+        // Modifier keys input
+        const modifierKeysInput = document.getElementById('modifier-keys-input');
+        modifierKeysInput.addEventListener('input', function() {
+            document.getElementById('modifier-keys-result').textContent = `Value: ${this.value}`;
+            logEvent('Modifier Keys', 'input', `value: "${this.value}"`);
+        });
+        modifierKeysInput.addEventListener('keydown', function(e) {
+            const modifiers = [];
+            if (e.ctrlKey) modifiers.push('Ctrl');
+            if (e.shiftKey) modifiers.push('Shift');
+            if (e.altKey) modifiers.push('Alt');
+            if (e.metaKey) modifiers.push('Meta');
+            
+            logEvent('Modifier Keys', 'keydown', `key: ${e.key}, modifiers: [${modifiers.join(', ')}]`);
+            
+            // Handle Ctrl+A
+            if (e.ctrlKey && e.key === 'a') {
+                document.getElementById('modifier-keys-result').textContent = 'Ctrl+A detected (Select All)';
+            }
+        });
+        
+        // Long text input
+        const longTextInput = document.getElementById('long-text-input');
+        longTextInput.addEventListener('input', function() {
+            document.getElementById('long-text-result').textContent = `Length: ${this.value.length} characters`;
+            logEvent('Long Text', 'input', `length: ${this.value.length} characters`);
+        });
+        
+        // Select element
+        const selectElement = document.getElementById('select-element');
+        selectElement.addEventListener('change', function() {
+            document.getElementById('select-result').textContent = `Selected: ${this.value}`;
+            logEvent('Select Element', 'change', `selected: ${this.value}`);
+        });
+        
+        // Checkbox element
+        const checkboxElement = document.getElementById('checkbox-element');
+        checkboxElement.addEventListener('change', function() {
+            document.getElementById('checkbox-result').textContent = `Checked: ${this.checked}`;
+            logEvent('Checkbox', 'change', `checked: ${this.checked}`);
+        });
+        
+        // Content editable
+        const contentEditable = document.getElementById('content-editable');
+        contentEditable.addEventListener('input', function() {
+            document.getElementById('contenteditable-result').textContent = `Content: ${this.textContent.substring(0, 30)}${this.textContent.length > 30 ? '...' : ''}`;
+            logEvent('Content Editable', 'input', `length: ${this.textContent.length} characters`);
+        });
+        contentEditable.addEventListener('keydown', function(e) {
+            logEvent('Content Editable', 'keydown', `key: ${e.key}, code: ${e.code}`);
+        });
+        
+        // Log initial page load
+        window.addEventListener('load', function() {
+            logEvent('Page', 'loaded');
+        });
+    </script>
+</body>
+</html>

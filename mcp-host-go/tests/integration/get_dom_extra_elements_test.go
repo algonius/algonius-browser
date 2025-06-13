@@ -75,7 +75,7 @@ func TestGetDomExtraElementsToolBasicPagination(t *testing.T) {
 		if tool.Name == "get_dom_extra_elements" {
 			found = true
 			assert.Equal(t, "get_dom_extra_elements", tool.Name)
-			assert.Contains(t, tool.Description, "Get additional DOM interactive elements")
+			assert.Contains(t, tool.Description, "Get interactive elements in the current viewport")
 			break
 		}
 	}

@@ -40,7 +40,7 @@ type Container struct {
 	ScrollPageTool      types.Tool
 	GetDomExtraElements types.Tool
 	ClickElementTool    types.Tool
-	SetValueTool        types.Tool
+	TypeValueTool       types.Tool
 	ManageTabsTool      types.Tool
 	CurrentStateRes     types.Resource
 	DomStateRes         types.Resource
@@ -109,8 +109,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := container.Server.RegisterTool(container.SetValueTool); err != nil {
-		container.Logger.Error("Failed to register set_value tool", zap.Error(err))
+	if err := container.Server.RegisterTool(container.TypeValueTool); err != nil {
+		container.Logger.Error("Failed to register type_value tool", zap.Error(err))
 		os.Exit(1)
 	}
 
@@ -328,14 +328,14 @@ func initContainer(startTime time.Time) (*Container, error) {
 	}
 	container.ClickElementTool = clickElementTool
 
-	setValueTool, err := tools.NewSetValueTool(tools.SetValueConfig{
+	typeValueTool, err := tools.NewTypeValueTool(tools.TypeValueConfig{
 		Logger:    toolLogger,
 		Messaging: container.Messaging,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create set_value tool: %w", err)
+		return nil, fmt.Errorf("failed to create type_value tool: %w", err)
 	}
-	container.SetValueTool = setValueTool
+	container.TypeValueTool = typeValueTool
 
 	manageTabsTool, err := tools.NewManageTabsTool(tools.ManageTabsConfig{
 		Logger:    toolLogger,
