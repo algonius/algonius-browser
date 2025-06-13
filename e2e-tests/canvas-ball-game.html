@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Ball Game - 键盘控制小球</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .game-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        canvas {
+            border: 2px solid #333;
+            border-radius: 5px;
+            display: block;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .info {
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .score {
+            font-size: 18px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            min-height: 50px;
+        }
+        
+        .keyboard-test {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+        }
+        
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Canvas Ball Game</h1>
+        <div class="score">分数: <span id="score">0</span></div>
+        
+        <canvas id="gameCanvas" width="600" height="400"></canvas>
+        
+        <div class="controls">
+            <button onclick="startGame()">开始游戏</button>
+            <button onclick="pauseGame()">暂停/继续</button>
+            <button onclick="resetGame()">重置游戏</button>
+        </div>
+        
+        <div class="info">
+            <strong>控制方式:</strong><br>
+            使用 ↑↓←→ 方向键或 WASD 键移动小球<br>
+            收集绿色目标得分，避开红色障碍物！
+        </div>
+        
+        <div class="status">
+            <strong>游戏状态:</strong> <span id="gameStatus">点击"开始游戏"开始</span><br>
+            <strong>位置:</strong> X: <span id="ballX">300</span>, Y: <span id="ballY">200</span><br>
+            <strong>速度:</strong> <span id="ballSpeed">5</span> 像素/秒
+        </div>
+        
+        <div class="keyboard-test">
+            <h3>键盘测试区域</h3>
+            <p>测试type_value工具的键盘控制功能:</p>
+            <input type="text" id="keyboardInput" placeholder="点击这里然后使用键盘输入测试..." />
+            <div style="margin-top: 10px;">
+                <strong>最后按键:</strong> <span id="lastKey">无</span><br>
+                <strong>按键时间:</strong> <span id="keyTime">--</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas 和游戏状态
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameState = {
+            isRunning: false,
+            isPaused: false,
+            score: 0,
+            ball: {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                radius: 15,
+                speed: 5,
+                color: '#007bff'
+            },
+            targets: [],
+            obstacles: [],
+            keys: {}
+        };
+        
+        // 更新显示
+        function updateDisplay() {
+            document.getElementById('score').textContent = gameState.score;
+            document.getElementById('ballX').textContent = Math.round(gameState.ball.x);
+            document.getElementById('ballY').textContent = Math.round(gameState.ball.y);
+            document.getElementById('ballSpeed').textContent = gameState.ball.speed;
+            
+            if (gameState.isRunning && !gameState.isPaused) {
+                document.getElementById('gameStatus').textContent = '游戏进行中';
+            } else if (gameState.isPaused) {
+                document.getElementById('gameStatus').textContent = '游戏已暂停';
+            } else {
+                document.getElementById('gameStatus').textContent = '游戏停止';
+            }
+        }
+        
+        // 生成随机目标
+        function generateTarget() {
+            return {
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: Math.random() * (canvas.height - 40) + 20,
+                radius: 12,
+                color: '#28a745'
+            };
+        }
+        
+        // 生成随机障碍物
+        function generateObstacle() {
+            return {
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: Math.random() * (canvas.height - 40) + 20,
+                radius: 18,
+                color: '#dc3545'
+            };
+        }
+        
+        // 检测碰撞
+        function checkCollision(obj1, obj2) {
+            const dx = obj1.x - obj2.x;
+            const dy = obj1.y - obj2.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance < (obj1.radius + obj2.radius);
+        }
+        
+        // 游戏渲染
+        function render() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制背景网格
+            ctx.strokeStyle = '#f8f9fa';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+            
+            // 绘制目标
+            gameState.targets.forEach(target => {
+                ctx.fillStyle = target.color;
+                ctx.beginPath();
+                ctx.arc(target.x, target.y, target.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 目标光环效果
+                ctx.strokeStyle = target.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(target.x, target.y, target.radius + 5, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+            
+            // 绘制障碍物
+            gameState.obstacles.forEach(obstacle => {
+                ctx.fillStyle = obstacle.color;
+                ctx.beginPath();
+                ctx.arc(obstacle.x, obstacle.y, obstacle.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 障碍物警告效果
+                ctx.strokeStyle = obstacle.color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(obstacle.x, obstacle.y, obstacle.radius + 3, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+            
+            // 绘制小球
+            ctx.fillStyle = gameState.ball.color;
+            ctx.beginPath();
+            ctx.arc(gameState.ball.x, gameState.ball.y, gameState.ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 小球边框
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(gameState.ball.x, gameState.ball.y, gameState.ball.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // 小球方向指示器
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(gameState.ball.x, gameState.ball.y);
+            ctx.lineTo(gameState.ball.x + Math.cos(Date.now() * 0.01) * 10, 
+                      gameState.ball.y + Math.sin(Date.now() * 0.01) * 10);
+            ctx.stroke();
+        }
+        
+        // 游戏更新逻辑
+        function update() {
+            if (!gameState.isRunning || gameState.isPaused) return;
+            
+            // 处理键盘输入
+            let moved = false;
+            if (gameState.keys['ArrowUp'] || gameState.keys['KeyW'] || gameState.keys['w'] || gameState.keys['W']) {
+                gameState.ball.y = Math.max(gameState.ball.radius, gameState.ball.y - gameState.ball.speed);
+                moved = true;
+            }
+            if (gameState.keys['ArrowDown'] || gameState.keys['KeyS'] || gameState.keys['s'] || gameState.keys['S']) {
+                gameState.ball.y = Math.min(canvas.height - gameState.ball.radius, gameState.ball.y + gameState.ball.speed);
+                moved = true;
+            }
+            if (gameState.keys['ArrowLeft'] || gameState.keys['KeyA'] || gameState.keys['a'] || gameState.keys['A']) {
+                gameState.ball.x = Math.max(gameState.ball.radius, gameState.ball.x - gameState.ball.speed);
+                moved = true;
+            }
+            if (gameState.keys['ArrowRight'] || gameState.keys['KeyD'] || gameState.keys['d'] || gameState.keys['D']) {
+                gameState.ball.x = Math.min(canvas.width - gameState.ball.radius, gameState.ball.x + gameState.ball.speed);
+                moved = true;
+            }
+            
+            // 检查目标碰撞
+            gameState.targets = gameState.targets.filter(target => {
+                if (checkCollision(gameState.ball, target)) {
+                    gameState.score += 10;
+                    return false; // 移除目标
+                }
+                return true;
+            });
+            
+            // 检查障碍物碰撞
+            gameState.obstacles.forEach(obstacle => {
+                if (checkCollision(gameState.ball, obstacle)) {
+                    gameState.score = Math.max(0, gameState.score - 5);
+                    // 将小球推离障碍物
+                    const dx = gameState.ball.x - obstacle.x;
+                    const dy = gameState.ball.y - obstacle.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance > 0) {
+                        const pushDistance = gameState.ball.radius + obstacle.radius + 5;
+                        gameState.ball.x = obstacle.x + (dx / distance) * pushDistance;
+                        gameState.ball.y = obstacle.y + (dy / distance) * pushDistance;
+                        
+                        // 确保不超出边界
+                        gameState.ball.x = Math.max(gameState.ball.radius, Math.min(canvas.width - gameState.ball.radius, gameState.ball.x));
+                        gameState.ball.y = Math.max(gameState.ball.radius, Math.min(canvas.height - gameState.ball.radius, gameState.ball.y));
+                    }
+                }
+            });
+            
+            // 补充目标和障碍物
+            while (gameState.targets.length < 3) {
+                gameState.targets.push(generateTarget());
+            }
+            while (gameState.obstacles.length < 2) {
+                gameState.obstacles.push(generateObstacle());
+            }
+            
+            updateDisplay();
+        }
+        
+        // 游戏循环
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // 开始游戏
+        function startGame() {
+            gameState.isRunning = true;
+            gameState.isPaused = false;
+            gameState.score = 0;
+            gameState.ball.x = canvas.width / 2;
+            gameState.ball.y = canvas.height / 2;
+            gameState.targets = [];
+            gameState.obstacles = [];
+            
+            // 初始化目标和障碍物
+            for (let i = 0; i < 3; i++) {
+                gameState.targets.push(generateTarget());
+            }
+            for (let i = 0; i < 2; i++) {
+                gameState.obstacles.push(generateObstacle());
+            }
+            
+            updateDisplay();
+        }
+        
+        // 暂停游戏
+        function pauseGame() {
+            if (gameState.isRunning) {
+                gameState.isPaused = !gameState.isPaused;
+                updateDisplay();
+            }
+        }
+        
+        // 重置游戏
+        function resetGame() {
+            gameState.isRunning = false;
+            gameState.isPaused = false;
+            gameState.score = 0;
+            gameState.ball.x = canvas.width / 2;
+            gameState.ball.y = canvas.height / 2;
+            gameState.targets = [];
+            gameState.obstacles = [];
+            gameState.keys = {};
+            updateDisplay();
+        }
+        
+        // 键盘事件处理
+        document.addEventListener('keydown', function(event) {
+            gameState.keys[event.code] = true;
+            gameState.keys[event.key] = true;
+            
+            // 更新键盘测试显示
+            document.getElementById('lastKey').textContent = event.key + ' (' + event.code + ')';
+            document.getElementById('keyTime').textContent = new Date().toLocaleTimeString();
+            
+            // 防止方向键滚动页面
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
+                event.preventDefault();
+            }
+        });
+        
+        document.addEventListener('keyup', function(event) {
+            gameState.keys[event.code] = false;
+            gameState.keys[event.key] = false;
+        });
+        
+        // 键盘输入测试
+        document.getElementById('keyboardInput').addEventListener('keydown', function(event) {
+            console.log('键盘输入测试 - 按键:', event.key, '代码:', event.code);
+        });
+        
+        // 初始化
+        updateDisplay();
+        gameLoop();
+        
+        // 页面加载完成提示
+        console.log('Canvas Ball Game 加载完成！');
+        console.log('使用方向键或WASD控制小球移动');
+        console.log('收集绿色目标得分，避开红色障碍物');
+    </script>
+</body>
+</html>

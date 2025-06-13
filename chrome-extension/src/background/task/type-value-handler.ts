@@ -122,7 +122,7 @@ export class TypeValueHandler {
     this.logger.debug('Received type_value request:', request);
 
     try {
-      const { element_index, value, keyboard_mode = false, options = {} } = request.params || {};
+      const { element_index, value, options = {} } = request.params || {};
 
       // Validate required parameters
       if (element_index === undefined || element_index === null) {
@@ -203,7 +203,7 @@ export class TypeValueHandler {
       }
 
       // Auto-detect or use explicit keyboard mode
-      const useKeyboardMode = this.shouldUseKeyboardMode(value, keyboard_mode);
+      const useKeyboardMode = this.shouldUseKeyboardMode(value);
 
       // Handle keyboard mode for special key input
       if (useKeyboardMode) {
@@ -341,17 +341,20 @@ export class TypeValueHandler {
   /**
    * Determine if keyboard mode should be used
    */
-  private shouldUseKeyboardMode(value: any, explicitKeyboardMode: boolean): boolean {
-    // If keyboard mode explicitly specified, use that
-    if (explicitKeyboardMode !== undefined) {
-      return explicitKeyboardMode;
-    }
-
+  private shouldUseKeyboardMode(value: any): boolean {
     // Auto-detect keyboard mode based on content
     if (typeof value === 'string') {
       // Check for special key pattern {key} or modifier combinations like {Ctrl+A}
       const keyPattern = /{([^}]+)}/g;
-      return keyPattern.test(value);
+      const hasSpecialKeys = keyPattern.test(value);
+
+      // Debug log to help identify the issue
+      console.log('Auto-detecting keyboard mode:', {
+        value,
+        hasSpecialKeys,
+      });
+
+      return hasSpecialKeys;
     }
 
     return false;
