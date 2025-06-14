@@ -179,11 +179,21 @@ func (r *CurrentStateResource) convertToMarkdown(state BrowserStateData) string 
 		if activeTabMap, ok := state.ActiveTab.(map[string]interface{}); ok {
 			for key, value := range activeTabMap {
 				if value != nil {
-					builder.WriteString(fmt.Sprintf("- **%s:** %v\n", strings.Title(key), value))
+					// Format tab ID properly to avoid scientific notation
+					if key == "id" || key == "Id" || key == "ID" {
+						if tabID := r.formatTabID(value); tabID != "" {
+							builder.WriteString(fmt.Sprintf("- **%s:** %s\n", strings.Title(key), tabID))
+						}
+					} else {
+						builder.WriteString(fmt.Sprintf("- **%s:** %v\n", strings.Title(key), value))
+					}
 				}
 			}
 		} else {
-			builder.WriteString(fmt.Sprintf("- **ID:** %v\n", state.ActiveTab))
+			// Format active tab ID properly
+			if tabID := r.formatTabID(state.ActiveTab); tabID != "" {
+				builder.WriteString(fmt.Sprintf("- **ID:** %s\n", tabID))
+			}
 		}
 	} else {
 		builder.WriteString("- *No active tab information available*\n")
@@ -200,9 +210,11 @@ func (r *CurrentStateResource) convertToMarkdown(state BrowserStateData) string 
 		for i, tab := range state.Tabs {
 			builder.WriteString(fmt.Sprintf("### Tab %d\n", i+1))
 
-			// Tab ID
+			// Tab ID - format properly to avoid scientific notation
 			if tab.ID != nil {
-				builder.WriteString(fmt.Sprintf("- **ID:** %v\n", tab.ID))
+				if tabID := r.formatTabID(tab.ID); tabID != "" {
+					builder.WriteString(fmt.Sprintf("- **ID:** %s\n", tabID))
+				}
 			}
 
 			// Tab URL
@@ -242,6 +254,42 @@ func (r *CurrentStateResource) convertToMarkdown(state BrowserStateData) string 
 	builder.WriteString(fmt.Sprintf("- **Background Tabs:** %d\n", len(state.Tabs)-activeTabs))
 
 	return builder.String()
+}
+
+// formatTabID formats tab ID to avoid scientific notation
+func (r *CurrentStateResource) formatTabID(id interface{}) string {
+	if id == nil {
+		return ""
+	}
+
+	switch v := id.(type) {
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int32:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case float64:
+		// Convert float64 to int64 to avoid scientific notation
+		return fmt.Sprintf("%.0f", v)
+	case float32:
+		// Convert float32 to int to avoid scientific notation
+		return fmt.Sprintf("%.0f", v)
+	case string:
+		return v
+	default:
+		// Fallback: convert to string and check if it looks like a number
+		str := fmt.Sprintf("%v", v)
+		// If it contains 'e' (scientific notation), try to convert to int
+		if strings.Contains(str, "e") || strings.Contains(str, "E") {
+			if f, err := fmt.Sscanf(str, "%f", new(float64)); err == nil && f == 1 {
+				var val float64
+				fmt.Sscanf(str, "%f", &val)
+				return fmt.Sprintf("%.0f", val)
+			}
+		}
+		return str
+	}
 }
 
 // getCurrentTimestamp returns the current timestamp in milliseconds
