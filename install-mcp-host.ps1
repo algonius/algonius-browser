@@ -63,7 +63,8 @@ function Test-ExtensionId {
     param([string]$Id)
     
     # Check if ID starts with chrome-extension:// and ends with /
-    return $Id -match "^chrome-extension://[a-z]{32}/$"
+    # Chrome extension IDs are 32 characters containing lowercase letters (a-z) and digits (0-9)
+    return $Id -match "^chrome-extension://[a-z0-9]{32}/$"
 }
 
 # Parse extension IDs from input (comma-separated)
@@ -84,16 +85,16 @@ function ConvertFrom-ExtensionIds {
         $trimmedId = $rawId.Trim()
         
         # Auto-format extension ID if it's just the 32-character ID
-        if ($trimmedId -match "^[a-z]{32}$") {
+        if ($trimmedId -match "^[a-z0-9]{32}$") {
             $trimmedId = "chrome-extension://$trimmedId/"
         }
-        elseif ($trimmedId -match "^chrome-extension://[a-z]{32}$") {
+        elseif ($trimmedId -match "^chrome-extension://[a-z0-9]{32}$") {
             # Add trailing slash if missing
             $trimmedId = "$trimmedId/"
         }
         elseif ($trimmedId -notmatch "^chrome-extension://") {
             # If it doesn't start with chrome-extension:// but isn't just 32 chars, try to add prefix
-            if ($trimmedId -match "^[a-z]{32}/?$") {
+            if ($trimmedId -match "^[a-z0-9]{32}/?$") {
                 # Remove trailing slash and add proper format
                 $cleanId = $trimmedId -replace "/$", ""
                 $trimmedId = "chrome-extension://$cleanId/"
@@ -110,7 +111,7 @@ function ConvertFrom-ExtensionIds {
             $ids += $trimmedId
         }
         else {
-            Write-Warning "Invalid extension ID format: $trimmedId (expected: 32 lowercase characters or full chrome-extension://id/ format)"
+            Write-Warning "Invalid extension ID format: $trimmedId (expected: 32 lowercase characters and numbers or full chrome-extension://id/ format)"
         }
     }
     
