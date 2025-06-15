@@ -1,11 +1,40 @@
 # Active Context - Algonius Browser MCP
 
 ## Current Focus
-**Status**: ✅ COMPREHENSIVE END-TO-END TESTING COMPLETE
-**Phase**: type_value Tool Keyboard Control Validation
-**Date**: December 13, 2025, 9:45 PM (Asia/Shanghai)
+**Status**: ✅ GITHUB ISSUE #22 FIXED - Extension ID Validation
+**Phase**: PowerShell Script Regex Pattern Fix
+**Date**: June 15, 2025, 9:14 AM (Asia/Shanghai)
 
-## Latest Achievement - GitHub Issue Successfully Submitted
+## Latest Achievement - Extension ID Validation Fix
+
+### ✅ GitHub Issue #22 Successfully Resolved
+Fixed critical extension ID validation issue in PowerShell installation script.
+
+**Issue Details**:
+- **GitHub Issue**: #22 - Extension ID validation fails for IDs containing numbers
+- **Problem**: Regex pattern `[a-z]{32}` only accepted lowercase letters, rejecting valid Chrome extension IDs with numbers
+- **Solution**: Updated regex to `[a-z0-9]{32}` to accept both lowercase letters and digits
+- **File Modified**: `install-mcp-host.ps1`
+- **Status**: ✅ FIXED & MERGED to release-0.5 branch
+- **Date Completed**: June 15, 2025, 9:14 AM (Asia/Shanghai)
+
+**Fix Details**:
+```powershell
+# OLD (problematic):
+if ($ExtensionId -notmatch '^[a-z]{32}$') {
+
+# NEW (fixed):
+if ($ExtensionId -notmatch '^[a-z0-9]{32}$') {
+```
+
+**Validation Results**:
+- ✅ Original ID `fgdfhaoklbjodbnhahlobkfiafbjfmfj` (letters only): Works with both old and new regex
+- ✅ Mixed IDs like `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6`: Now works with new regex
+- ✅ Chrome extension IDs can contain both letters (a-z) and digits (0-9)
+
+**Impact**: Users can now install the MCP host with any valid Chrome extension ID format, eliminating installation failures for extensions with numeric characters.
+
+## Previous Achievement - GitHub Issue Successfully Submitted
 
 ### ✅ Canvas Game Control Enhancement Issue Created
 Successfully submitted a comprehensive GitHub issue for advanced Canvas game keyboard control functionality.

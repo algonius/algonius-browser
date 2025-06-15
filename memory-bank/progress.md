@@ -1,8 +1,41 @@
 # Algonius Browser MCP - Development Progress
 
-## Current Status: 🔄 TESTING & BUG FIXES ✅
+## Current Status: ✅ GITHUB ISSUE #22 FIXED - Extension ID Validation
 
-**Testing Phase Results: 100% SUCCESS ACROSS ALL CATEGORIES WITH FIXED TESTS**
+**Latest Fix: PowerShell Script Regex Pattern Update for Extension ID Validation**
+
+### ✅ GitHub Issue #22 Resolution - Extension ID Validation Fix
+
+**Issue Summary**: 
+- **GitHub Issue**: #22 - Extension ID validation fails for IDs containing numbers  
+- **Problem**: PowerShell installation script used regex pattern `[a-z]{32}` that only accepted lowercase letters
+- **Impact**: Installation failed for valid Chrome extension IDs containing numeric characters
+- **Solution**: Updated regex pattern to `[a-z0-9]{32}` to accept both letters and digits
+
+**Fix Details**:
+- **File Modified**: `install-mcp-host.ps1`
+- **Line Changed**: Line 15 - Extension ID validation regex
+- **Change Applied**: 
+  ```powershell
+  # OLD (problematic):
+  if ($ExtensionId -notmatch '^[a-z]{32}$') {
+  
+  # NEW (fixed):
+  if ($ExtensionId -notmatch '^[a-z0-9]{32}$') {
+  ```
+
+**Validation Results**:
+- ✅ Letters-only IDs: `fgdfhaoklbjodbnhahlobkfiafbjfmfj` - Works with both patterns
+- ✅ Mixed IDs: `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6` - Now works with new pattern
+- ✅ Chrome extension IDs properly support both letters (a-z) and digits (0-9)
+
+**Implementation Timeline**:
+- **Issue Identified**: June 15, 2025, 8:46 AM (Asia/Shanghai)
+- **Fix Applied**: June 15, 2025, 9:10 AM (Asia/Shanghai)  
+- **Merged to Branch**: release-0.5
+- **Status**: ✅ COMPLETE - Fix deployed and verified
+
+**Impact**: Users can now install the MCP host with any valid Chrome extension ID format, eliminating installation failures for extensions with numeric characters.
 
 ### Comprehensive Testing Summary
 
