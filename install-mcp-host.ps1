@@ -146,24 +146,111 @@ function Read-ExtensionIds {
     Write-Info "Default ID: $DEFAULT_EXTENSION_ID"
     Write-Host ""
     
+    $maxAttempts = 3
+    $attempt = 0
+    
     do {
-        $userInput = Read-Host "Enter extension ID(s) (or press Enter to use default)"
+        $attempt++
         
-        # Use default if empty
-        if ([string]::IsNullOrWhiteSpace($userInput)) {
+        # Use different input methods for better compatibility
+        try {
+            # Try multiple input methods for better compatibility with downloaded scripts
+            Write-Host "Enter extension ID(s) (or press Enter to use default): " -NoNewline -ForegroundColor Yellow
+            
+            # Force input reading with different approaches
+            if ($Host.UI.RawUI.KeyAvailable) {
+                $userInput = Read-Host
+            } else {
+                # Alternative input method for script execution context
+                $userInput = [System.Console]::ReadLine()
+            }
+            
+            Write-Host "[DEBUG] Raw input received: '$userInput'" -ForegroundColor Magenta
+            
+            # Trim any whitespace
+            $userInput = $userInput.Trim()
+            Write-Host "[DEBUG] After trim: '$userInput'" -ForegroundColor Magenta
+            
+            # Use default if empty or just whitespace
+            if ([string]::IsNullOrWhiteSpace($userInput)) {
+                Write-Host "[DEBUG] Using default extension ID" -ForegroundColor Green
+                return @($DEFAULT_EXTENSION_ID)
+            }
+            
+            # Parse and validate IDs using inline processing instead of function call
+            Write-Host "[DEBUG] Processing user input: '$userInput'" -ForegroundColor Cyan
+            $finalResult = @()
+            
+            ($userInput -split "," | ForEach-Object { $_.Trim() }) | ForEach-Object {
+                $currentId = $_
+                Write-Host "[DEBUG] Processing ID: '$currentId'" -ForegroundColor Cyan
+                
+                # Skip empty entries
+                if ([string]::IsNullOrWhiteSpace($currentId)) {
+                    Write-Host "[DEBUG] Skipping empty ID" -ForegroundColor Yellow
+                    return
+                }
+                
+                $processedId = $currentId.Trim()
+                Write-Host "[DEBUG] After trim: '$processedId'" -ForegroundColor Cyan
+                
+                # Auto-format extension ID if it's just the 32-character ID
+                if ($processedId -match "^[a-z0-9]{32}$") {
+                    $processedId = "chrome-extension://$processedId/"
+                    Write-Host "[DEBUG] Added chrome-extension prefix: '$processedId'" -ForegroundColor Green
+                }
+                elseif ($processedId -match "^chrome-extension://[a-z0-9]{32}$") {
+                    # Add trailing slash if missing
+                    $processedId = "$processedId/"
+                    Write-Host "[DEBUG] Added trailing slash: '$processedId'" -ForegroundColor Green
+                }
+                elseif ($processedId -notmatch "^chrome-extension://") {
+                    # If it doesn't start with chrome-extension:// but isn't just 32 chars, try to add prefix
+                    if ($processedId -match "^[a-z0-9]{32}/?$") {
+                        # Remove trailing slash and add proper format
+                        $baseId = $processedId -replace "/$", ""
+                        $processedId = "chrome-extension://$baseId/"
+                        Write-Host "[DEBUG] Fixed format: '$processedId'" -ForegroundColor Green
+                    }
+                }
+                
+                # Ensure trailing slash
+                if ($processedId -match "^chrome-extension://" -and $processedId -notmatch "/$") {
+                    $processedId = "$processedId/"
+                    Write-Host "[DEBUG] Ensured trailing slash: '$processedId'" -ForegroundColor Green
+                }
+                
+                # Validate format
+                if ($processedId -match "^chrome-extension://[a-z0-9]{32}/$") {
+                    $finalResult += $processedId
+                    Write-Host "[DEBUG] VALID: Added '$processedId' to result" -ForegroundColor Green
+                }
+                else {
+                    Write-Warning "Invalid extension ID format: $processedId (expected: 32 lowercase characters and numbers or full chrome-extension://id/ format)"
+                }
+            }
+            
+            Write-Host "[DEBUG] Final result count: $($finalResult.Count)" -ForegroundColor Magenta
+            
+            if ($finalResult.Count -gt 0) {
+                return $finalResult
+            }
+            else {
+                Write-Warning "No valid extension IDs provided. Please try again. (Attempt $attempt of $maxAttempts)"
+                if ($attempt -ge $maxAttempts) {
+                    Write-Warning "Maximum attempts reached. Using default extension ID."
+                    return @($DEFAULT_EXTENSION_ID)
+                }
+            }
+        }
+        catch {
+            Write-Warning "Input error: $($_.Exception.Message). Using default extension ID."
             return @($DEFAULT_EXTENSION_ID)
         }
-        
-        # Parse and validate IDs
-        $parsedIds = ConvertFrom-ExtensionIds $userInput
-        
-        if ($parsedIds.Count -gt 0) {
-            return $parsedIds
-        }
-        else {
-            Write-Error "No valid extension IDs provided. Please try again."
-        }
-    } while ($true)
+    } while ($attempt -lt $maxAttempts)
+    
+    # Fallback to default
+    return @($DEFAULT_EXTENSION_ID)
 }
 
 # Detect platform (Windows architecture)
