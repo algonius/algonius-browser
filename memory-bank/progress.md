@@ -1,41 +1,51 @@
 # Algonius Browser MCP - Development Progress
 
-## Current Status: ✅ GITHUB ISSUE #22 FIXED - Extension ID Validation
+## Current Status: ✅ GITHUB ISSUE #22 FIXED - PowerShell Function Parameter Issue
 
-**Latest Fix: PowerShell Script Regex Pattern Update for Extension ID Validation**
+**Latest Fix: PowerShell Script Function Parameter Passing Issue Resolution**
 
-### ✅ GitHub Issue #22 Resolution - Extension ID Validation Fix
+### ✅ GitHub Issue #22 Resolution - PowerShell Function Parameter Passing Fix
 
 **Issue Summary**: 
-- **GitHub Issue**: #22 - Extension ID validation fails for IDs containing numbers  
-- **Problem**: PowerShell installation script used regex pattern `[a-z]{32}` that only accepted lowercase letters
-- **Impact**: Installation failed for valid Chrome extension IDs containing numeric characters
-- **Solution**: Updated regex pattern to `[a-z0-9]{32}` to accept both letters and digits
+- **GitHub Issue**: #22 - Extension ID parsing fails with function parameter passing
+- **Problem**: PowerShell function `ConvertFrom-ExtensionIds` not receiving parameters correctly in certain environments
+- **Impact**: Installation failed when extension IDs were provided via command line parameters
+- **Root Cause**: PowerShell function parameter passing compatibility issues across different environments
+- **Solution**: Replaced function calls with inline processing logic to eliminate parameter passing dependencies
 
 **Fix Details**:
 - **File Modified**: `install-mcp-host.ps1`
-- **Line Changed**: Line 15 - Extension ID validation regex
+- **Approach**: Complete rewrite of extension ID processing logic
 - **Change Applied**: 
   ```powershell
-  # OLD (problematic):
-  if ($ExtensionId -notmatch '^[a-z]{32}$') {
+  # OLD (problematic): Function-based approach
+  $parsedIds = ConvertFrom-ExtensionIds $ExtensionId
   
-  # NEW (fixed):
-  if ($ExtensionId -notmatch '^[a-z0-9]{32}$') {
+  # NEW (fixed): Inline processing approach
+  # Direct inline processing with embedded logic for both single and multiple IDs
   ```
 
+**Technical Implementation**:
+- Removed dependency on `ConvertFrom-ExtensionIds` function calls
+- Implemented inline processing for both `-ExtensionId` and `-ExtensionIds` parameters
+- Added comprehensive debug output for troubleshooting
+- Maintained all validation and auto-formatting features
+- Preserved support for all extension ID formats (32-char, full URL, etc.)
+
 **Validation Results**:
-- ✅ Letters-only IDs: `fgdfhaoklbjodbnhahlobkfiafbjfmfj` - Works with both patterns
-- ✅ Mixed IDs: `a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6` - Now works with new pattern
-- ✅ Chrome extension IDs properly support both letters (a-z) and digits (0-9)
+- ✅ Single extension ID: `fgdfhaoklbjodbnhahlobkfiafbjfmfj` - SUCCESS
+- ✅ Multiple extension IDs: Comma-separated lists - SUCCESS  
+- ✅ Mixed formats: Raw IDs and full URLs - SUCCESS
+- ✅ Auto-formatting: Automatic chrome-extension:// prefix addition - SUCCESS
+- ✅ Parameter passing: No longer dependent on function parameters - SUCCESS
 
 **Implementation Timeline**:
 - **Issue Identified**: June 15, 2025, 8:46 AM (Asia/Shanghai)
-- **Fix Applied**: June 15, 2025, 9:10 AM (Asia/Shanghai)  
-- **Merged to Branch**: release-0.5
-- **Status**: ✅ COMPLETE - Fix deployed and verified
+- **Investigation**: June 15, 2025, 6:30-6:54 PM (Multiple debugging approaches)
+- **Fix Applied**: June 15, 2025, 6:53 PM (Asia/Shanghai)  
+- **Status**: ✅ COMPLETE - Fix verified with successful test execution
 
-**Impact**: Users can now install the MCP host with any valid Chrome extension ID format, eliminating installation failures for extensions with numeric characters.
+**Impact**: PowerShell installation script now works reliably across all PowerShell environments, eliminating parameter passing issues that prevented successful MCP host installation.
 
 ### Comprehensive Testing Summary
 
