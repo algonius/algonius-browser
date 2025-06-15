@@ -1,49 +1,75 @@
 # Algonius Browser MCP - Development Progress
 
-## Current Status: ✅ GITHUB ISSUE #22 FIXED - PowerShell Function Parameter Issue
+## Current Status: ✅ GITHUB ISSUE #22 COMPLETE - PowerShell DEBUG Output Control
 
-**Latest Fix: PowerShell Script Function Parameter Passing Issue Resolution**
+**Latest Fix: PowerShell Script DEBUG Logging Control Enhancement**
 
-### ✅ GitHub Issue #22 Resolution - PowerShell Function Parameter Passing Fix
+### ✅ GitHub Issue #22 Resolution - DEBUG Output Control Implementation
 
 **Issue Summary**: 
-- **GitHub Issue**: #22 - Extension ID parsing fails with function parameter passing
-- **Problem**: PowerShell function `ConvertFrom-ExtensionIds` not receiving parameters correctly in certain environments
-- **Impact**: Installation failed when extension IDs were provided via command line parameters
-- **Root Cause**: PowerShell function parameter passing compatibility issues across different environments
-- **Solution**: Replaced function calls with inline processing logic to eliminate parameter passing dependencies
+- **GitHub Issue**: #22 - PowerShell script produces too much DEBUG output without user control
+- **Problem**: Script generated excessive DEBUG logs that cluttered user interface and affected user experience
+- **Impact**: Poor user experience during installation with overwhelming DEBUG messages
+- **Root Cause**: All DEBUG output was unconditionally displayed using `Write-Host "[DEBUG]"` calls
+- **Solution**: Implemented conditional DEBUG output controlled by `-Debug` parameter
 
 **Fix Details**:
 - **File Modified**: `install-mcp-host.ps1`
-- **Approach**: Complete rewrite of extension ID processing logic
-- **Change Applied**: 
+- **Approach**: Added centralized DEBUG output control mechanism
+- **Key Implementation**: 
   ```powershell
-  # OLD (problematic): Function-based approach
-  $parsedIds = ConvertFrom-ExtensionIds $ExtensionId
+  # Added DEBUG control function
+  function Write-Debug {
+      param([string]$Message)
+      if ($Debug) {
+          Write-Host "[DEBUG] $Message" -ForegroundColor Magenta
+      }
+  }
   
-  # NEW (fixed): Inline processing approach
-  # Direct inline processing with embedded logic for both single and multiple IDs
+  # Replaced all Write-Host "[DEBUG]" calls with Write-Debug function calls
+  # OLD: Write-Host "[DEBUG] message" -ForegroundColor SomeColor
+  # NEW: Write-Debug "message"
   ```
 
 **Technical Implementation**:
-- Removed dependency on `ConvertFrom-ExtensionIds` function calls
-- Implemented inline processing for both `-ExtensionId` and `-ExtensionIds` parameters
-- Added comprehensive debug output for troubleshooting
-- Maintained all validation and auto-formatting features
-- Preserved support for all extension ID formats (32-char, full URL, etc.)
+- **Added**: `-Debug` parameter to script with `[switch]` type for easy activation
+- **Added**: `Write-Debug` function that only outputs when `-Debug` parameter is used
+- **Replaced**: All 23+ `Write-Host "[DEBUG]"` calls with `Write-Debug` function calls
+- **Maintained**: All debugging information availability when needed
+- **Improved**: Clean user interface when debugging not required
 
-**Validation Results**:
-- ✅ Single extension ID: `fgdfhaoklbjodbnhahlobkfiafbjfmfj` - SUCCESS
-- ✅ Multiple extension IDs: Comma-separated lists - SUCCESS  
-- ✅ Mixed formats: Raw IDs and full URLs - SUCCESS
-- ✅ Auto-formatting: Automatic chrome-extension:// prefix addition - SUCCESS
-- ✅ Parameter passing: No longer dependent on function parameters - SUCCESS
+**Systematic Changes Applied**:
+1. **Script Parameter Addition**: Added `-Debug` switch parameter
+2. **Debug Function Creation**: Implemented conditional Write-Debug function
+3. **Mass Replacement**: Systematically replaced all DEBUG logging calls:
+   - ConvertFrom-ExtensionIds function: 8+ debug calls converted
+   - Read-ExtensionIds function: 10+ debug calls converted  
+   - Install-McpHost main function: 5+ debug calls converted
+4. **Verification**: Confirmed only 1 legitimate `Write-Host "[DEBUG]"` remains (inside Write-Debug function)
+
+**User Experience Improvement**:
+- **Without -Debug**: Clean, professional output focused on essential information
+- **With -Debug**: Comprehensive debugging information for troubleshooting
+- **Backward Compatible**: Existing usage patterns continue to work
+- **Enhanced Troubleshooting**: Debug information available when explicitly requested
 
 **Implementation Timeline**:
-- **Issue Identified**: June 15, 2025, 8:46 AM (Asia/Shanghai)
-- **Investigation**: June 15, 2025, 6:30-6:54 PM (Multiple debugging approaches)
-- **Fix Applied**: June 15, 2025, 6:53 PM (Asia/Shanghai)  
-- **Status**: ✅ COMPLETE - Fix verified with successful test execution
+- **Issue Identified**: GitHub Issue #22 opened
+- **Investigation & Planning**: June 15, 2025, 7:00-7:30 PM (Asia/Shanghai)
+- **Implementation**: June 15, 2025, 7:30-7:47 PM (Systematic DEBUG call replacement)
+- **Verification**: June 15, 2025, 7:47 PM (Confirmed all calls converted)
+- **Status**: ✅ COMPLETE - DEBUG output now properly controlled by -Debug parameter
+
+**Usage Examples**:
+```powershell
+# Clean installation (default behavior)
+.\install-mcp-host.ps1 -ExtensionId "fgdfhaoklbjodbnhahlobkfiafbjfmfj"
+
+# Installation with debug output
+.\install-mcp-host.ps1 -Debug -ExtensionId "fgdfhaoklbjodbnhahlobkfiafbjfmfj"
+```
+
+**Impact**: PowerShell installation script now provides clean, professional user experience by default while maintaining full debugging capabilities when explicitly requested via the -Debug parameter.
 
 **Impact**: PowerShell installation script now works reliably across all PowerShell environments, eliminating parameter passing issues that prevented successful MCP host installation.
 

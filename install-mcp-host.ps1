@@ -6,7 +6,8 @@ param(
     [string]$ExtensionId = "",
     [string]$ExtensionIds = "",
     [switch]$Uninstall = $false,
-    [switch]$Help = $false
+    [switch]$Help = $false,
+    [switch]$Debug = $false
 )
 
 # Configuration
@@ -58,6 +59,13 @@ function Write-Info {
     Write-Host "[INFO] $Message" -ForegroundColor $Colors.Blue
 }
 
+function Write-Debug {
+    param([string]$Message)
+    if ($Debug) {
+        Write-Host "[DEBUG] $Message" -ForegroundColor Magenta
+    }
+}
+
 # Validate extension ID format
 function Test-ExtensionId {
     param([string]$Id)
@@ -72,7 +80,7 @@ function Test-ExtensionId {
 function ConvertFrom-ExtensionIds {
     param([string]$Input)
     
-    Write-Host "[DEBUG] ConvertFrom-ExtensionIds called with input: '$Input'" -ForegroundColor Magenta
+    Write-Debug "ConvertFrom-ExtensionIds called with input: '$Input'"
     
     # Return inline processing result immediately
     $finalResult = @()
@@ -80,26 +88,26 @@ function ConvertFrom-ExtensionIds {
     # Process input directly without intermediate variables
     ($Input -split "," | ForEach-Object { $_.Trim() }) | ForEach-Object {
         $currentId = $_
-        Write-Host "[DEBUG] Processing ID: '$currentId'" -ForegroundColor Cyan
+        Write-Debug "Processing ID: '$currentId'"
         
         # Skip empty entries
         if ([string]::IsNullOrWhiteSpace($currentId)) {
-            Write-Host "[DEBUG] Skipping empty ID" -ForegroundColor Yellow
+            Write-Debug "Skipping empty ID"
             return
         }
         
         $processedId = $currentId.Trim()
-        Write-Host "[DEBUG] After trim: '$processedId'" -ForegroundColor Cyan
+        Write-Debug "After trim: '$processedId'"
         
         # Auto-format extension ID if it's just the 32-character ID
         if ($processedId -match "^[a-z0-9]{32}$") {
             $processedId = "chrome-extension://$processedId/"
-            Write-Host "[DEBUG] Added chrome-extension prefix: '$processedId'" -ForegroundColor Green
+            Write-Debug "Added chrome-extension prefix: '$processedId'"
         }
         elseif ($processedId -match "^chrome-extension://[a-z0-9]{32}$") {
             # Add trailing slash if missing
             $processedId = "$processedId/"
-            Write-Host "[DEBUG] Added trailing slash: '$processedId'" -ForegroundColor Green
+            Write-Debug "Added trailing slash: '$processedId'"
         }
         elseif ($processedId -notmatch "^chrome-extension://") {
             # If it doesn't start with chrome-extension:// but isn't just 32 chars, try to add prefix
@@ -107,27 +115,27 @@ function ConvertFrom-ExtensionIds {
                 # Remove trailing slash and add proper format
                 $baseId = $processedId -replace "/$", ""
                 $processedId = "chrome-extension://$baseId/"
-                Write-Host "[DEBUG] Fixed format: '$processedId'" -ForegroundColor Green
+                Write-Debug "Fixed format: '$processedId'"
             }
         }
         
         # Ensure trailing slash
         if ($processedId -match "^chrome-extension://" -and $processedId -notmatch "/$") {
             $processedId = "$processedId/"
-            Write-Host "[DEBUG] Ensured trailing slash: '$processedId'" -ForegroundColor Green
+            Write-Debug "Ensured trailing slash: '$processedId'"
         }
         
         # Validate format
         if ($processedId -match "^chrome-extension://[a-z0-9]{32}/$") {
             $finalResult += $processedId
-            Write-Host "[DEBUG] VALID: Added '$processedId' to result" -ForegroundColor Green
+            Write-Debug "VALID: Added '$processedId' to result"
         }
         else {
             Write-Warning "Invalid extension ID format: $processedId (expected: 32 lowercase characters and numbers or full chrome-extension://id/ format)"
         }
     }
     
-    Write-Host "[DEBUG] Final result count: $($finalResult.Count)" -ForegroundColor Magenta
+    Write-Debug "Final result count: $($finalResult.Count)"
     return $finalResult
 }
 
@@ -165,44 +173,44 @@ function Read-ExtensionIds {
                 $userInput = [System.Console]::ReadLine()
             }
             
-            Write-Host "[DEBUG] Raw input received: '$userInput'" -ForegroundColor Magenta
+            Write-Debug "Raw input received: '$userInput'"
             
             # Trim any whitespace
             $userInput = $userInput.Trim()
-            Write-Host "[DEBUG] After trim: '$userInput'" -ForegroundColor Magenta
+            Write-Debug "After trim: '$userInput'"
             
             # Use default if empty or just whitespace
             if ([string]::IsNullOrWhiteSpace($userInput)) {
-                Write-Host "[DEBUG] Using default extension ID" -ForegroundColor Green
+                Write-Debug "Using default extension ID"
                 return @($DEFAULT_EXTENSION_ID)
             }
             
             # Parse and validate IDs using inline processing instead of function call
-            Write-Host "[DEBUG] Processing user input: '$userInput'" -ForegroundColor Cyan
+            Write-Debug "Processing user input: '$userInput'"
             $finalResult = @()
             
             ($userInput -split "," | ForEach-Object { $_.Trim() }) | ForEach-Object {
                 $currentId = $_
-                Write-Host "[DEBUG] Processing ID: '$currentId'" -ForegroundColor Cyan
+                Write-Debug "Processing ID: '$currentId'"
                 
                 # Skip empty entries
                 if ([string]::IsNullOrWhiteSpace($currentId)) {
-                    Write-Host "[DEBUG] Skipping empty ID" -ForegroundColor Yellow
+                    Write-Debug "Skipping empty ID"
                     return
                 }
                 
                 $processedId = $currentId.Trim()
-                Write-Host "[DEBUG] After trim: '$processedId'" -ForegroundColor Cyan
+                Write-Debug "After trim: '$processedId'"
                 
                 # Auto-format extension ID if it's just the 32-character ID
                 if ($processedId -match "^[a-z0-9]{32}$") {
                     $processedId = "chrome-extension://$processedId/"
-                    Write-Host "[DEBUG] Added chrome-extension prefix: '$processedId'" -ForegroundColor Green
+                    Write-Debug "Added chrome-extension prefix: '$processedId'"
                 }
                 elseif ($processedId -match "^chrome-extension://[a-z0-9]{32}$") {
                     # Add trailing slash if missing
                     $processedId = "$processedId/"
-                    Write-Host "[DEBUG] Added trailing slash: '$processedId'" -ForegroundColor Green
+                    Write-Debug "Added trailing slash: '$processedId'"
                 }
                 elseif ($processedId -notmatch "^chrome-extension://") {
                     # If it doesn't start with chrome-extension:// but isn't just 32 chars, try to add prefix
@@ -210,27 +218,27 @@ function Read-ExtensionIds {
                         # Remove trailing slash and add proper format
                         $baseId = $processedId -replace "/$", ""
                         $processedId = "chrome-extension://$baseId/"
-                        Write-Host "[DEBUG] Fixed format: '$processedId'" -ForegroundColor Green
+                        Write-Debug "Fixed format: '$processedId'"
                     }
                 }
                 
                 # Ensure trailing slash
                 if ($processedId -match "^chrome-extension://" -and $processedId -notmatch "/$") {
                     $processedId = "$processedId/"
-                    Write-Host "[DEBUG] Ensured trailing slash: '$processedId'" -ForegroundColor Green
+                    Write-Debug "Ensured trailing slash: '$processedId'"
                 }
                 
                 # Validate format
                 if ($processedId -match "^chrome-extension://[a-z0-9]{32}/$") {
                     $finalResult += $processedId
-                    Write-Host "[DEBUG] VALID: Added '$processedId' to result" -ForegroundColor Green
+                    Write-Debug "VALID: Added '$processedId' to result"
                 }
                 else {
                     Write-Warning "Invalid extension ID format: $processedId (expected: 32 lowercase characters and numbers or full chrome-extension://id/ format)"
                 }
             }
             
-            Write-Host "[DEBUG] Final result count: $($finalResult.Count)" -ForegroundColor Magenta
+            Write-Debug "Final result count: $($finalResult.Count)"
             
             if ($finalResult.Count -gt 0) {
                 return $finalResult
@@ -527,7 +535,7 @@ function Install-McpHost {
     
     # Process single ExtensionId parameter
     if (-not [string]::IsNullOrWhiteSpace($ExtensionId)) {
-        Write-Host "[DEBUG] Processing single ExtensionId: '$ExtensionId'" -ForegroundColor Magenta
+        Write-Debug "Processing single ExtensionId: '$ExtensionId'"
         
         $tempResults = @()
         ($ExtensionId -split "," | ForEach-Object { $_.Trim() }) | ForEach-Object {
@@ -557,7 +565,7 @@ function Install-McpHost {
                 # Validate format
                 if ($processedId -match "^chrome-extension://[a-z0-9]{32}/$") {
                     $tempResults += $processedId
-                    Write-Host "[DEBUG] Valid ID added: '$processedId'" -ForegroundColor Green
+                    Write-Debug "Valid ID added: '$processedId'"
                 }
                 else {
                     Write-Warning "Invalid extension ID format: $processedId"
@@ -575,7 +583,7 @@ function Install-McpHost {
     }
     # Process multiple ExtensionIds parameter
     elseif (-not [string]::IsNullOrWhiteSpace($ExtensionIds)) {
-        Write-Host "[DEBUG] Processing multiple ExtensionIds: '$ExtensionIds'" -ForegroundColor Magenta
+        Write-Debug "Processing multiple ExtensionIds: '$ExtensionIds'"
         
         $tempResults = @()
         ($ExtensionIds -split "," | ForEach-Object { $_.Trim() }) | ForEach-Object {
@@ -605,7 +613,7 @@ function Install-McpHost {
                 # Validate format
                 if ($processedId -match "^chrome-extension://[a-z0-9]{32}/$") {
                     $tempResults += $processedId
-                    Write-Host "[DEBUG] Valid ID added: '$processedId'" -ForegroundColor Green
+                    Write-Debug "Valid ID added: '$processedId'"
                 }
                 else {
                     Write-Warning "Invalid extension ID format: $processedId"
