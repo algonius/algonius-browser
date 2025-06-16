@@ -8,7 +8,7 @@
 import type BrowserContext from '../browser/context';
 import { createLogger } from '../log';
 import type { RpcHandler, RpcRequest, RpcResponse } from '../mcp/host-manager';
-import type { DOMElementNode } from '../dom/views';
+import { DOMElementNode } from '../dom/views';
 import { findElementByHighlightIndex } from './dom-utils';
 import { type KeyInput } from 'puppeteer-core/lib/esm/puppeteer/puppeteer-core-browser.js';
 
@@ -39,6 +39,426 @@ interface InputStrategy {
  */
 export class TypeValueHandler {
   private logger = createLogger('TypeValueHandler');
+
+  /**
+   * Generate DOM snapshot for change detection
+   * Enhanced to capture more comprehensive DOM state including button states and content changes
+   */
+  private async generateDOMSnapshot(): Promise<string> {
+    try {
+      // Get current browser state with vision enabled
+      const browserState = await this.browserContext.getState(true);
+
+      if (!browserState.elementTree) {
+        return 'no_dom';
+      }
+
+      // Extract interactive elements using enhanced logic
+      const interactiveElements = this.extractInteractiveElements(browserState.elementTree);
+
+      // Also capture button states and important UI elements that might change
+      const buttonStates = this.extractButtonStates(browserState.elementTree);
+      const contentElements = this.extractContentElements(browserState.elementTree);
+
+      // Generate comprehensive snapshot
+      const snapshot = this.generateEnhancedElementSnapshot(interactiveElements, buttonStates, contentElements);
+
+      return snapshot;
+    } catch (error) {
+      this.logger.warning('Failed to generate DOM snapshot:', error);
+      return 'snapshot_error';
+    }
+  }
+
+  /**
+   * Extract interactive elements from DOM tree
+   * Enhanced to include potential interactive elements for better DOM change detection
+   */
+  private extractInteractiveElements(tree: DOMElementNode): any[] {
+    const interactiveElements: any[] = [];
+    const queue: DOMElementNode[] = [tree];
+
+    while (queue.length > 0) {
+      const node = queue.shift();
+      if (!node) continue;
+
+      // Add interactive elements with highlight indices (existing logic)
+      if (node.isInteractive && node.highlightIndex !== null) {
+        interactiveElements.push(this.createElementSnapshot(node, 'interactive'));
+      }
+      // Add potential interactive elements (button, input, etc., even if currently disabled/non-interactive)
+      else if (this.isPotentialInteractiveElement(node)) {
+        interactiveElements.push(this.createElementSnapshot(node, 'potential'));
+      }
+
+      // Add children to queue
+      for (const child of node.children) {
+        if (child instanceof DOMElementNode) {
+          queue.push(child);
+        }
+      }
+    }
+
+    return interactiveElements;
+  }
+
+  /**
+   * Check if an element is potentially interactive
+   * This includes elements that may become interactive or lose interactivity
+   */
+  private isPotentialInteractiveElement(node: DOMElementNode): boolean {
+    const tagName = node.tagName?.toLowerCase();
+    if (!tagName) return false;
+
+    // Standard interactive element types
+    const interactiveTagNames = new Set(['button', 'input', 'select', 'textarea', 'a', 'option']);
+
+    // Check tag name
+    if (interactiveTagNames.has(tagName)) {
+      return true;
+    }
+
+    // Check for elements with interactive roles
+    const interactiveRoles = new Set([
+      'button',
+      'link',
+      'checkbox',
+      'radio',
+      'textbox',
+      'combobox',
+      'listbox',
+      'option',
+    ]);
+
+    if (node.attributes.role && interactiveRoles.has(node.attributes.role.toLowerCase())) {
+      return true;
+    }
+
+    // Check for elements with click handlers or interactive attributes
+    if (
+      node.attributes.onclick ||
+      node.attributes.onsubmit ||
+      node.attributes.tabindex !== undefined ||
+      node.attributes.contenteditable === 'true'
+    ) {
+      return true;
+    }
+
+    // Check for form-related elements that might become interactive
+    if (tagName === 'div' || tagName === 'span') {
+      const className = node.attributes.class || '';
+      const id = node.attributes.id || '';
+
+      // Common patterns for interactive elements
+      const interactivePatterns = [/button/i, /btn/i, /submit/i, /click/i, /interactive/i, /action/i];
+
+      return interactivePatterns.some(pattern => pattern.test(className) || pattern.test(id));
+    }
+
+    return false;
+  }
+
+  /**
+   * Create element snapshot for DOM change detection
+   */
+  private createElementSnapshot(node: DOMElementNode, elementStatus: 'interactive' | 'potential'): any {
+    return {
+      // Use a consistent identifier for potential elements
+      index: node.highlightIndex ?? -1,
+      tagName: node.tagName,
+      text: node.getAllTextTillNextClickableElement(),
+      id: node.attributes.id || '',
+      class: node.attributes.class || '',
+      type: node.attributes.type || '',
+      href: node.attributes.href || '',
+      value: node.attributes.value || '',
+      isInViewport: node.isInViewport,
+      // New fields to track element state
+      elementStatus: elementStatus,
+      disabled: node.attributes.disabled !== undefined,
+      readonly: node.attributes.readonly !== undefined,
+      isInteractive: node.isInteractive,
+      // Add a unique identifier for consistent tracking
+      elementKey: this.generateElementKey(node),
+    };
+  }
+
+  /**
+   * Generate a unique key for an element for consistent tracking
+   */
+  private generateElementKey(node: DOMElementNode): string {
+    const parts = [
+      node.tagName || '',
+      node.attributes.id || '',
+      node.attributes.name || '',
+      node.attributes.class || '',
+      (node.getAllTextTillNextClickableElement() || '').substring(0, 30),
+    ];
+    return parts.join(':');
+  }
+
+  /**
+   * Generate element snapshot hash for change detection
+   */
+  private generateElementSnapshot(elements: any[]): string {
+    if (elements.length === 0) {
+      return '0:';
+    }
+
+    // Generate stable keys for each element
+    const elementKeys = elements.map(el => {
+      const keyParts = [
+        el.tagName || '',
+        el.index?.toString() || '',
+        el.id || '',
+        el.class || '',
+        (el.text || '').substring(0, 50), // Limit text length to avoid large changes
+        el.type || '',
+        el.href || '',
+        el.value || '',
+      ];
+      return keyParts.join(':');
+    });
+
+    // Sort for consistency
+    elementKeys.sort();
+    const hash = elementKeys.join('|');
+
+    return `${elements.length}:${hash}`;
+  }
+
+  /**
+   * Generate enhanced element snapshot that includes button states and content elements
+   */
+  private generateEnhancedElementSnapshot(
+    interactiveElements: any[],
+    buttonStates: any[],
+    contentElements: any[],
+  ): string {
+    const parts = [];
+
+    // Interactive elements count and hash
+    if (interactiveElements.length > 0) {
+      const interactiveKeys = interactiveElements.map(el => {
+        const keyParts = [
+          el.tagName || '',
+          el.index?.toString() || '',
+          el.id || '',
+          el.class || '',
+          (el.text || '').substring(0, 50),
+          el.type || '',
+          el.disabled?.toString() || 'false',
+          el.isInteractive?.toString() || 'false',
+        ];
+        return keyParts.join(':');
+      });
+      interactiveKeys.sort();
+      parts.push(`I${interactiveElements.length}:${interactiveKeys.join('|')}`);
+    } else {
+      parts.push('I0:');
+    }
+
+    // Button states
+    if (buttonStates.length > 0) {
+      const buttonKeys = buttonStates.map(btn => {
+        return `${btn.text}:${btn.disabled}:${btn.class}`;
+      });
+      buttonKeys.sort();
+      parts.push(`B${buttonStates.length}:${buttonKeys.join('|')}`);
+    } else {
+      parts.push('B0:');
+    }
+
+    // Content elements (for character counters, warnings, etc.)
+    if (contentElements.length > 0) {
+      const contentKeys = contentElements.map(el => {
+        return `${el.class}:${el.text.substring(0, 30)}`;
+      });
+      contentKeys.sort();
+      parts.push(`C${contentElements.length}:${contentKeys.join('|')}`);
+    } else {
+      parts.push('C0:');
+    }
+
+    return parts.join('###');
+  }
+
+  /**
+   * Extract button states for DOM change detection
+   */
+  private extractButtonStates(tree: DOMElementNode): any[] {
+    const buttons: any[] = [];
+    const queue: DOMElementNode[] = [tree];
+
+    while (queue.length > 0) {
+      const node = queue.shift();
+      if (!node) continue;
+
+      // Capture all buttons and their states
+      if (
+        node.tagName?.toLowerCase() === 'button' ||
+        (node.tagName?.toLowerCase() === 'div' && node.attributes.role === 'button') ||
+        (node.tagName?.toLowerCase() === 'a' && node.attributes.role === 'button')
+      ) {
+        const buttonText = node.getAllTextTillNextClickableElement() || '';
+        const isDisabled =
+          node.attributes.disabled !== undefined ||
+          node.attributes['aria-disabled'] === 'true' ||
+          (node.attributes.class || '').includes('disabled');
+
+        buttons.push({
+          text: buttonText.substring(0, 50), // Limit text length
+          disabled: isDisabled,
+          class: node.attributes.class || '',
+          tagName: node.tagName,
+          role: node.attributes.role || '',
+        });
+      }
+
+      // Add children to queue
+      for (const child of node.children) {
+        if (child instanceof DOMElementNode) {
+          queue.push(child);
+        }
+      }
+    }
+
+    return buttons;
+  }
+
+  /**
+   * Extract content elements that might change (counters, warnings, etc.)
+   */
+  private extractContentElements(tree: DOMElementNode): any[] {
+    const contentElements: any[] = [];
+    const queue: DOMElementNode[] = [tree];
+
+    while (queue.length > 0) {
+      const node = queue.shift();
+      if (!node) continue;
+
+      const className = node.attributes.class || '';
+      const text = node.getAllTextTillNextClickableElement() || '';
+
+      // Look for elements that typically indicate UI state changes
+      const isStateElement =
+        className.includes('counter') ||
+        className.includes('warning') ||
+        className.includes('error') ||
+        className.includes('limit') ||
+        className.includes('character') ||
+        className.includes('premium') ||
+        className.includes('upgrade') ||
+        text.includes('character') ||
+        text.includes('Premium') ||
+        text.includes('upgrade') ||
+        /\d+\s*(character|char|left|remaining)/.test(text.toLowerCase());
+
+      if (isStateElement && text.trim().length > 0) {
+        contentElements.push({
+          text: text.substring(0, 50),
+          class: className,
+          tagName: node.tagName || '',
+          id: node.attributes.id || '',
+        });
+      }
+
+      // Add children to queue
+      for (const child of node.children) {
+        if (child instanceof DOMElementNode) {
+          queue.push(child);
+        }
+      }
+    }
+
+    return contentElements;
+  }
+
+  /**
+   * Smart DOM comparison that detects significant changes in enhanced snapshot format
+   */
+  private isDOMSignificantlyChanged(before: string, after: string): boolean {
+    if (before === after) return false;
+
+    // Handle enhanced snapshot format: "I<count>:<hash>###B<count>:<hash>###C<count>:<hash>"
+    if (before.includes('###') && after.includes('###')) {
+      return this.compareEnhancedSnapshots(before, after);
+    }
+
+    // Fallback to legacy format for backward compatibility
+    const [beforeCount, beforeHash] = before.split(':', 2);
+    const [afterCount, afterHash] = after.split(':', 2);
+
+    // Element count change is significant
+    if (beforeCount !== afterCount) {
+      this.logger.debug('DOM element count changed', {
+        before: beforeCount,
+        after: afterCount,
+      });
+      return true;
+    }
+
+    // Hash difference indicates property changes
+    if (beforeHash !== afterHash) {
+      this.logger.debug('DOM element properties changed');
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Compare enhanced snapshots for more accurate change detection
+   */
+  private compareEnhancedSnapshots(before: string, after: string): boolean {
+    const beforeParts = before.split('###');
+    const afterParts = after.split('###');
+
+    if (beforeParts.length !== afterParts.length) {
+      this.logger.debug('Enhanced snapshot structure changed');
+      return true;
+    }
+
+    let changesDetected = false;
+    const changeDetails: string[] = [];
+
+    // Compare each part (Interactive, Buttons, Content)
+    for (let i = 0; i < beforeParts.length; i++) {
+      const beforePart = beforeParts[i];
+      const afterPart = afterParts[i];
+
+      if (beforePart !== afterPart) {
+        const partType = beforePart.charAt(0); // I, B, or C
+        const partName = partType === 'I' ? 'Interactive' : partType === 'B' ? 'Buttons' : 'Content';
+
+        // Extract counts for comparison
+        const beforeMatch = beforePart.match(/^([IBC])(\d+):/);
+        const afterMatch = afterPart.match(/^([IBC])(\d+):/);
+
+        if (beforeMatch && afterMatch) {
+          const beforeCount = parseInt(beforeMatch[2]);
+          const afterCount = parseInt(afterMatch[2]);
+
+          if (beforeCount !== afterCount) {
+            changeDetails.push(`${partName} count: ${beforeCount} → ${afterCount}`);
+            changesDetected = true;
+          } else {
+            changeDetails.push(`${partName} properties changed`);
+            changesDetected = true;
+          }
+        } else {
+          changeDetails.push(`${partName} structure changed`);
+          changesDetected = true;
+        }
+      }
+    }
+
+    if (changesDetected) {
+      this.logger.debug('Enhanced DOM changes detected', { changes: changeDetails });
+    }
+
+    return changesDetected;
+  }
 
   /**
    * Special key mappings for standardized keyboard input
@@ -202,6 +622,10 @@ export class TypeValueHandler {
         };
       }
 
+      // DOM change detection: Get snapshot before operation
+      const beforeSnapshot = await this.generateDOMSnapshot();
+      this.logger.debug('DOM snapshot before type_value:', { beforeSnapshot });
+
       // Auto-detect or use explicit keyboard mode
       const useKeyboardMode = this.shouldUseKeyboardMode(value);
 
@@ -213,6 +637,26 @@ export class TypeValueHandler {
         const optimalWait = this.getOptimalWaitTime('keyboard', finalOptions.wait_after * 1000);
         await new Promise(resolve => setTimeout(resolve, optimalWait));
 
+        // DOM change detection: Get snapshot after keyboard operation
+        const afterSnapshot = await this.generateDOMSnapshot();
+        this.logger.debug('DOM snapshot after keyboard operation:', { afterSnapshot });
+
+        // Check for DOM changes
+        const domChanged =
+          beforeSnapshot !== 'no_dom' &&
+          afterSnapshot !== 'no_dom' &&
+          beforeSnapshot !== 'snapshot_error' &&
+          afterSnapshot !== 'snapshot_error' &&
+          this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
+
+        if (domChanged) {
+          this.logger.info('DOM change detected after keyboard operation', {
+            element_index,
+            beforeSnapshot: beforeSnapshot.substring(0, 100),
+            afterSnapshot: afterSnapshot.substring(0, 100),
+          });
+        }
+
         return {
           result: {
             success: true,
@@ -220,6 +664,7 @@ export class TypeValueHandler {
             element_index,
             element_type: elementNode!.tagName?.toLowerCase() || 'unknown',
             input_method: 'keyboard',
+            dom_changed: domChanged,
             operations_performed: result.operationsPerformed,
             element_info: {
               tag_name: elementNode!.tagName,
@@ -277,6 +722,27 @@ export class TypeValueHandler {
         }
       }
 
+      // DOM change detection: Get snapshot after standard operation
+      const afterSnapshot = await this.generateDOMSnapshot();
+      this.logger.debug('DOM snapshot after standard operation:', { afterSnapshot });
+
+      // Check for DOM changes
+      const domChanged =
+        beforeSnapshot !== 'no_dom' &&
+        afterSnapshot !== 'no_dom' &&
+        beforeSnapshot !== 'snapshot_error' &&
+        afterSnapshot !== 'snapshot_error' &&
+        this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
+
+      if (domChanged) {
+        this.logger.info('DOM change detected after standard operation', {
+          element_index,
+          strategy: strategy.elementType,
+          beforeSnapshot: beforeSnapshot.substring(0, 100),
+          afterSnapshot: afterSnapshot.substring(0, 100),
+        });
+      }
+
       const result = {
         success: true,
         message: `Successfully set ${strategy.elementType} to "${setResult.actualValue}" using ${strategy.method} method`,
@@ -284,6 +750,7 @@ export class TypeValueHandler {
         element_type: strategy.elementType,
         input_method: strategy.method,
         actual_value: setResult.actualValue,
+        dom_changed: domChanged,
         element_info: {
           tag_name: elementNode!.tagName,
           text: elementNode!.getAllTextTillNextClickableElement() || '',
@@ -295,7 +762,7 @@ export class TypeValueHandler {
         options_used: finalOptions,
       };
 
-      this.logger.debug('Type value completed:', result);
+      this.logger.debug('Type value completed with DOM change detection:', result);
 
       return {
         result,

@@ -347,11 +347,20 @@ func (t *TypeValueTool) Execute(args map[string]interface{}) (types.ToolResult, 
 		}
 	}
 
+	// Extract DOM change detection result from Chrome extension
+	var domChanged bool
+	if domChangedVal, exists := resultData["dom_changed"]; exists {
+		if domChangedBool, ok := domChangedVal.(bool); ok {
+			domChanged = domChangedBool
+		}
+	}
+
 	t.logger.Info("Type value successful",
 		zap.Int("element_index", elementIndex),
 		zap.String("element_type", elementType),
 		zap.String("input_method", inputMethod),
 		zap.Any("actual_value", actualValue),
+		zap.Bool("dom_changed", domChanged),
 		zap.Float64("execution_time", executionTime))
 
 	// Create detailed success response
@@ -367,6 +376,19 @@ func (t *TypeValueTool) Execute(args map[string]interface{}) (types.ToolResult, 
 - Input Mode: %s
 - Element Type: %s
 - Execution Time: %.2f seconds`, message, elementIndex, inputModeText, elementType, executionTime)
+
+	// Add DOM change detection information
+	if domChanged {
+		responseText += "\n- DOM Changed: Yes (interactive elements modified)"
+		responseText += "\n\n⚠️  IMPORTANT: DOM has been modified by this operation."
+		responseText += "\n   Please call browser://dom/state resource to get the updated DOM state"
+		responseText += "\n   before performing any subsequent element interactions."
+		t.logger.Info("DOM change detected by Chrome extension",
+			zap.Int("element_index", elementIndex),
+			zap.Bool("dom_changed", domChanged))
+	} else {
+		responseText += "\n- DOM Changed: No"
+	}
 
 	if elementInfo != nil {
 		if text, exists := elementInfo["text"]; exists && text != nil && text != "" {
