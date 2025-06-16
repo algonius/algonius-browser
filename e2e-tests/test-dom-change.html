@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DOM Change Detection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        input, textarea { padding: 10px; margin: 10px 0; font-size: 16px; width: 100%; box-sizing: border-box; }
+        button { padding: 10px 20px; margin: 10px 5px; font-size: 16px; cursor: pointer; }
+        .results { border: 1px solid #ccc; padding: 15px; margin: 10px 0; min-height: 50px; }
+        .error { color: red; }
+        .success { color: green; }
+        .hidden { display: none; }
+        .autocomplete { border: 1px solid #ccc; max-height: 200px; overflow-y: auto; }
+        .suggestion { padding: 10px; cursor: pointer; border-bottom: 1px solid #eee; }
+        .suggestion:hover { background-color: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DOM Change Detection Test Page</h1>
+        <p>This page tests various scenarios where typing should trigger DOM changes.</p>
+        
+        <h2>Test 1: Dynamic Content Creation</h2>
+        <input type="text" id="search" placeholder="Type to see search results..." />
+        <div id="search-results" class="results">Search results will appear here...</div>
+        
+        <h2>Test 2: Form Validation</h2>
+        <input type="email" id="email" placeholder="Enter email address..." />
+        <div id="email-error" class="error hidden">Please enter a valid email address</div>
+        
+        <h2>Test 3: Autocomplete</h2>
+        <input type="text" id="autocomplete" placeholder="Type for suggestions (apple, banana, cherry)..." />
+        <div id="suggestions" class="autocomplete hidden"></div>
+        
+        <h2>Test 4: Character Counter</h2>
+        <textarea id="message" placeholder="Type your message..." maxlength="100"></textarea>
+        <div id="char-count">0 / 100 characters</div>
+        
+        <h2>Test 5: Simple Input (No DOM Changes)</h2>
+        <input type="text" id="simple" placeholder="This won't trigger DOM changes..." />
+        
+        <h2>Test 6: Dynamic Buttons</h2>
+        <input type="text" id="action-trigger" placeholder="Type 'show' to reveal buttons..." />
+        <div id="dynamic-buttons" class="hidden">
+            <button type="button">Dynamic Button 1</button>
+            <button type="button">Dynamic Button 2</button>
+            <button type="button">Dynamic Button 3</button>
+        </div>
+    </div>
+
+    <script>
+        // Test 1: Search results
+        document.getElementById('search').addEventListener('input', function(e) {
+            const results = document.getElementById('search-results');
+            const value = e.target.value;
+            if (value.length > 0) {
+                const mockResults = [
+                    `Result 1 for "${value}"`,
+                    `Result 2 for "${value}"`,
+                    `Result 3 for "${value}"`
+                ];
+                results.innerHTML = mockResults.map(result => 
+                    `<div><button onclick="alert('${result} clicked')">${result}</button></div>`
+                ).join('');
+            } else {
+                results.innerHTML = 'Search results will appear here...';
+            }
+        });
+
+        // Test 2: Email validation
+        document.getElementById('email').addEventListener('input', function(e) {
+            const errorDiv = document.getElementById('email-error');
+            const value = e.target.value;
+            if (value.length > 0 && !value.includes('@')) {
+                errorDiv.classList.remove('hidden');
+            } else {
+                errorDiv.classList.add('hidden');
+            }
+        });
+
+        // Test 3: Autocomplete
+        const suggestions = ['apple', 'banana', 'cherry', 'date', 'elderberry'];
+        document.getElementById('autocomplete').addEventListener('input', function(e) {
+            const suggestionsDiv = document.getElementById('suggestions');
+            const value = e.target.value.toLowerCase();
+            
+            if (value.length > 0) {
+                const filtered = suggestions.filter(s => s.toLowerCase().includes(value));
+                if (filtered.length > 0) {
+                    suggestionsDiv.innerHTML = filtered.map(s => 
+                        `<div class="suggestion" onclick="selectSuggestion('${s}')">${s}</div>`
+                    ).join('');
+                    suggestionsDiv.classList.remove('hidden');
+                } else {
+                    suggestionsDiv.classList.add('hidden');
+                }
+            } else {
+                suggestionsDiv.classList.add('hidden');
+            }
+        });
+        
+        function selectSuggestion(text) {
+            document.getElementById('autocomplete').value = text;
+            document.getElementById('suggestions').classList.add('hidden');
+        }
+
+        // Test 4: Character counter
+        document.getElementById('message').addEventListener('input', function(e) {
+            const counter = document.getElementById('char-count');
+            const length = e.target.value.length;
+            const maxLength = 100;
+            counter.textContent = `${length} / ${maxLength} characters`;
+            if (length > 80) {
+                counter.style.color = 'red';
+            } else {
+                counter.style.color = 'black';
+            }
+        });
+
+        // Test 6: Dynamic buttons
+        document.getElementById('action-trigger').addEventListener('input', function(e) {
+            const buttonsDiv = document.getElementById('dynamic-buttons');
+            const value = e.target.value.toLowerCase();
+            if (value.includes('show')) {
+                buttonsDiv.classList.remove('hidden');
+            } else {
+                buttonsDiv.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
