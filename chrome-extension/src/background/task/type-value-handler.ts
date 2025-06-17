@@ -41,6 +41,45 @@ export class TypeValueHandler {
   private logger = createLogger('TypeValueHandler');
 
   /**
+   * Restore escaped curly braces
+   */
+  private restoreEscapedBraces(text: string): string {
+    return text.replace(/§LEFTBRACE§/g, '{').replace(/§RIGHTBRACE§/g, '}');
+  }
+
+  /**
+   * Verify if the given key content is a valid special key or modifier combination.
+   */
+  private isValidSpecialKey(keyContent: string): boolean {
+    // Check single special key
+    const normalizedKey = keyContent.toLowerCase();
+    if (this.specialKeyMap[normalizedKey]) {
+      return true;
+    }
+
+    // Check modifier combination (e.g., Ctrl+A, Shift+Tab)
+    if (keyContent.includes('+')) {
+      const parts = keyContent.split('+').map(p => p.trim());
+      if (parts.length >= 2) {
+        const modifiers = parts.slice(0, -1);
+        const key = parts[parts.length - 1];
+
+        // Verify all modifiers are valid
+        const validModifiers = modifiers.every(mod => this.modifierKeyMap[mod.toLowerCase()] !== undefined);
+
+        // Verify the main key is a valid special key or a single character key
+        const validKey =
+          this.specialKeyMap[key.toLowerCase()] !== undefined ||
+          /^[a-zA-Z0-9]$/.test(key) || // Alphanumeric keys
+          key === ' '; // Space key
+
+        return validModifiers && validKey;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Generate DOM snapshot for change detection
    * Enhanced to capture more comprehensive DOM state including button states and content changes
    */
@@ -627,21 +666,155 @@ export class TypeValueHandler {
       this.logger.debug('DOM snapshot before type_value:', { beforeSnapshot });
 
       // Auto-detect or use explicit keyboard mode
-      const useKeyboardMode = this.shouldUseKeyboardMode(value);
+      const shouldUseKeyboard = this.shouldUseKeyboardMode(value);
 
-      // Handle keyboard mode for special key input
-      if (useKeyboardMode) {
-        const result = await this.handleKeyboardInput(currentPage, elementNode!, value, finalOptions);
+      if (shouldUseKeyboard) {
+        try {
+          // Attempt keyboard mode
+          this.logger.debug('Attempting keyboard mode input');
+          const keyboardResult = await this.handleKeyboardInput(currentPage, elementNode!, value, finalOptions);
 
-        // Use optimized wait time
-        const optimalWait = this.getOptimalWaitTime('keyboard', finalOptions.wait_after * 1000);
+          // Keyboard mode succeeded
+          this.logger.info('Keyboard mode succeeded');
+          // Use optimized wait time
+          const optimalWait = this.getOptimalWaitTime('keyboard', finalOptions.wait_after * 1000);
+          await new Promise(resolve => setTimeout(resolve, optimalWait));
+
+          // DOM change detection: Get snapshot after keyboard operation
+          const afterSnapshot = await this.generateDOMSnapshot();
+          this.logger.debug('DOM snapshot after keyboard operation:', { afterSnapshot });
+
+          const domChanged =
+            beforeSnapshot !== 'no_dom' &&
+            afterSnapshot !== 'no_dom' &&
+            beforeSnapshot !== 'snapshot_error' &&
+            afterSnapshot !== 'snapshot_error' &&
+            this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
+
+          if (domChanged) {
+            this.logger.info('DOM change detected after keyboard operation', {
+              element_index,
+              beforeSnapshot: beforeSnapshot.substring(0, 100),
+              afterSnapshot: afterSnapshot.substring(0, 100),
+            });
+          }
+
+          return {
+            result: {
+              success: true,
+              message: `Successfully executed keyboard input on element`,
+              element_index,
+              element_type: elementNode!.tagName?.toLowerCase() || 'unknown',
+              input_method: 'keyboard',
+              dom_changed: domChanged,
+              operations_performed: keyboardResult.operationsPerformed,
+              element_info: {
+                tag_name: elementNode!.tagName,
+                text: elementNode!.getAllTextTillNextClickableElement() || '',
+                placeholder: elementNode!.attributes.placeholder || '',
+                name: elementNode!.attributes.name || '',
+                id: elementNode!.attributes.id || '',
+                type: elementNode!.attributes.type || '',
+              },
+              options_used: finalOptions,
+            },
+          };
+        } catch (keyboardError) {
+          // Keyboard mode failed, automatically fall back to text mode
+          this.logger.warning('Keyboard mode failed, falling back to text mode:', keyboardError);
+
+          try {
+            // Reset element state before attempting text mode
+            await this.resetElementState(currentPage, elementNode!, finalOptions);
+
+            // Execute text mode input
+            const textResult = await this.handleTextModeInput(currentPage, elementNode!, value, finalOptions);
+            this.logger.info('Auto-fallback to text mode succeeded');
+
+            // Use optimized wait time
+            const strategy = this.determineInputStrategy(elementNode!, value);
+            const optimalWait = this.getOptimalWaitTime(strategy.elementType, finalOptions.wait_after * 1000);
+            await new Promise(resolve => setTimeout(resolve, optimalWait));
+
+            // DOM change detection: Get snapshot after text operation
+            const afterSnapshot = await this.generateDOMSnapshot();
+            this.logger.debug('DOM snapshot after text operation (fallback):', { afterSnapshot });
+
+            const domChanged =
+              beforeSnapshot !== 'no_dom' &&
+              afterSnapshot !== 'no_dom' &&
+              beforeSnapshot !== 'snapshot_error' &&
+              afterSnapshot !== 'snapshot_error' &&
+              this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
+
+            if (domChanged) {
+              this.logger.info('DOM change detected after text operation (fallback)', {
+                element_index,
+                beforeSnapshot: beforeSnapshot.substring(0, 100),
+                afterSnapshot: afterSnapshot.substring(0, 100),
+              });
+            }
+
+            return {
+              result: {
+                success: true,
+                message: `Keyboard mode failed, successfully set value using text mode (fallback) on ${strategy.elementType} to "${textResult.actualValue}"`,
+                element_index,
+                element_type: strategy.elementType,
+                input_method: 'text-fallback',
+                actual_value: textResult.actualValue,
+                dom_changed: domChanged,
+                element_info: {
+                  tag_name: elementNode!.tagName,
+                  text: elementNode!.getAllTextTillNextClickableElement() || '',
+                  placeholder: elementNode!.attributes.placeholder || '',
+                  name: elementNode!.attributes.name || '',
+                  id: elementNode!.attributes.id || '',
+                  type: elementNode!.attributes.type || '',
+                },
+                options_used: finalOptions,
+              },
+            };
+          } catch (textError) {
+            // Both modes failed
+            this.logger.error('Both keyboard and text modes failed:', { keyboardError, textError });
+            return {
+              error: {
+                code: -32603,
+                message: `Both keyboard and text input modes failed. Keyboard: ${keyboardError instanceof Error ? keyboardError.message : String(keyboardError)}. Text: ${textError instanceof Error ? textError.message : String(textError)}`,
+                data: {
+                  error_code: 'TYPE_VALUE_ALL_MODES_FAILED',
+                  keyboard_error: keyboardError instanceof Error ? keyboardError.stack : String(keyboardError),
+                  text_error: textError instanceof Error ? textError.stack : String(textError),
+                },
+              },
+            };
+          }
+        }
+      } else {
+        // Directly use text mode
+        this.logger.debug('Using text mode input');
+        const textResult = await this.handleTextModeInput(currentPage, elementNode!, value, finalOptions);
+
+        const strategy = this.determineInputStrategy(elementNode!, value);
+        // Use optimized wait time based on element type
+        const optimalWait = this.getOptimalWaitTime(strategy.elementType, finalOptions.wait_after * 1000);
         await new Promise(resolve => setTimeout(resolve, optimalWait));
 
-        // DOM change detection: Get snapshot after keyboard operation
-        const afterSnapshot = await this.generateDOMSnapshot();
-        this.logger.debug('DOM snapshot after keyboard operation:', { afterSnapshot });
+        // Handle submit option
+        if (finalOptions.submit) {
+          try {
+            await currentPage.sendKeys('Enter');
+            this.logger.debug('Form submitted after setting value');
+          } catch (submitError) {
+            this.logger.warning('Failed to submit form after setting value:', submitError);
+          }
+        }
 
-        // Check for DOM changes
+        // DOM change detection: Get snapshot after standard operation
+        const afterSnapshot = await this.generateDOMSnapshot();
+        this.logger.debug('DOM snapshot after standard operation:', { afterSnapshot });
+
         const domChanged =
           beforeSnapshot !== 'no_dom' &&
           afterSnapshot !== 'no_dom' &&
@@ -650,8 +823,9 @@ export class TypeValueHandler {
           this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
 
         if (domChanged) {
-          this.logger.info('DOM change detected after keyboard operation', {
+          this.logger.info('DOM change detected after standard operation', {
             element_index,
+            strategy: strategy.elementType,
             beforeSnapshot: beforeSnapshot.substring(0, 100),
             afterSnapshot: afterSnapshot.substring(0, 100),
           });
@@ -660,12 +834,12 @@ export class TypeValueHandler {
         return {
           result: {
             success: true,
-            message: `Successfully executed keyboard input on element`,
+            message: `Successfully set ${strategy.elementType} to "${textResult.actualValue}" using text method`,
             element_index,
-            element_type: elementNode!.tagName?.toLowerCase() || 'unknown',
-            input_method: 'keyboard',
+            element_type: strategy.elementType,
+            input_method: 'text',
+            actual_value: textResult.actualValue,
             dom_changed: domChanged,
-            operations_performed: result.operationsPerformed,
             element_info: {
               tag_name: elementNode!.tagName,
               text: elementNode!.getAllTextTillNextClickableElement() || '',
@@ -678,95 +852,6 @@ export class TypeValueHandler {
           },
         };
       }
-
-      // Standard value setting mode for non-keyboard input
-      // Determine input strategy
-      const strategy = this.determineInputStrategy(elementNode!, value);
-      if (!strategy.canHandle) {
-        const supportedTypes = ['input', 'select', 'textarea', 'contenteditable'];
-        const suggestedActions = [
-          'Check if element is actually interactive',
-          'Verify element type matches expected behavior',
-          'Use click_element tool for non-form elements',
-        ];
-
-        return {
-          error: {
-            code: -32000,
-            message: `Cannot handle element type: ${strategy.elementType}`,
-            data: {
-              error_code: 'UNSUPPORTED_ELEMENT_TYPE',
-              element_type: strategy.elementType,
-              element_tag: elementNode!.tagName,
-              supported_types: supportedTypes,
-              suggested_actions: suggestedActions,
-            },
-          },
-        };
-      }
-
-      // Execute the value setting operation
-      const setResult = await this.executeValueSetting(currentPage, elementNode!, value, strategy, finalOptions);
-
-      // Use optimized wait time based on element type
-      const optimalWait = this.getOptimalWaitTime(strategy.elementType, finalOptions.wait_after * 1000);
-      await new Promise(resolve => setTimeout(resolve, optimalWait));
-
-      // Handle submit option
-      if (finalOptions.submit) {
-        try {
-          await currentPage.sendKeys('Enter');
-          this.logger.debug('Form submitted after setting value');
-        } catch (submitError) {
-          this.logger.warning('Failed to submit form after setting value:', submitError);
-        }
-      }
-
-      // DOM change detection: Get snapshot after standard operation
-      const afterSnapshot = await this.generateDOMSnapshot();
-      this.logger.debug('DOM snapshot after standard operation:', { afterSnapshot });
-
-      // Check for DOM changes
-      const domChanged =
-        beforeSnapshot !== 'no_dom' &&
-        afterSnapshot !== 'no_dom' &&
-        beforeSnapshot !== 'snapshot_error' &&
-        afterSnapshot !== 'snapshot_error' &&
-        this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
-
-      if (domChanged) {
-        this.logger.info('DOM change detected after standard operation', {
-          element_index,
-          strategy: strategy.elementType,
-          beforeSnapshot: beforeSnapshot.substring(0, 100),
-          afterSnapshot: afterSnapshot.substring(0, 100),
-        });
-      }
-
-      const result = {
-        success: true,
-        message: `Successfully set ${strategy.elementType} to "${setResult.actualValue}" using ${strategy.method} method`,
-        element_index,
-        element_type: strategy.elementType,
-        input_method: strategy.method,
-        actual_value: setResult.actualValue,
-        dom_changed: domChanged,
-        element_info: {
-          tag_name: elementNode!.tagName,
-          text: elementNode!.getAllTextTillNextClickableElement() || '',
-          placeholder: elementNode!.attributes.placeholder || '',
-          name: elementNode!.attributes.name || '',
-          id: elementNode!.attributes.id || '',
-          type: elementNode!.attributes.type || '',
-        },
-        options_used: finalOptions,
-      };
-
-      this.logger.debug('Type value completed with DOM change detection:', result);
-
-      return {
-        result,
-      };
     } catch (error) {
       this.logger.error('Error setting value:', error);
 
@@ -806,74 +891,146 @@ export class TypeValueHandler {
   };
 
   /**
-   * Determine if keyboard mode should be used
+   * Reset element state, typically used before retrying with a different input mode.
    */
-  private shouldUseKeyboardMode(value: any): boolean {
-    // Auto-detect keyboard mode based on content
-    if (typeof value === 'string') {
-      // Check for special key pattern {key} or modifier combinations like {Ctrl+A}
-      const keyPattern = /{([^}]+)}/g;
-      const hasSpecialKeys = keyPattern.test(value);
+  private async resetElementState(page: any, elementNode: DOMElementNode, options: any): Promise<void> {
+    try {
+      const elementHandle = await page.locateElement(elementNode);
+      if (!elementHandle) return;
 
-      // Debug log to help identify the issue
-      console.log('Auto-detecting keyboard mode:', {
-        value,
-        hasSpecialKeys,
+      // Clear possible focus and selection states
+      await elementHandle.evaluate((el: HTMLElement) => {
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+          el.blur(); // Remove focus
+          el.focus(); // Re-focus to ensure it's ready
+          if (options.clear_first) {
+            // Only clear if originally requested
+            el.value = ''; // Clear value
+            el.dispatchEvent(new Event('input', { bubbles: true })); // Trigger input event
+          }
+        } else if (el.isContentEditable && options.clear_first) {
+          el.textContent = '';
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
       });
 
-      return hasSpecialKeys;
+      // Brief wait for state stabilization
+      await new Promise(resolve => setTimeout(resolve, 100));
+      this.logger.debug('Element state reset for fallback attempt');
+    } catch (error) {
+      this.logger.debug('Reset element state failed (non-critical for fallback):', error);
     }
+  }
 
+  /**
+   * Unified handler for text mode input, used directly or as fallback.
+   */
+  private async handleTextModeInput(
+    page: any,
+    elementNode: DOMElementNode,
+    value: any,
+    options: any,
+  ): Promise<{ actualValue: any }> {
+    const strategy = this.determineInputStrategy(elementNode!, value);
+    if (!strategy.canHandle) {
+      // This should ideally not be reached if called as a fallback,
+      // but good to have a guard.
+      throw new Error(`Cannot handle element type for text input: ${strategy.elementType}`);
+    }
+    return await this.executeValueSetting(page, elementNode!, value, strategy, options);
+  }
+
+  /**
+   * Determine if keyboard mode should be used based on smart detection.
+   */
+  private shouldUseKeyboardMode(value: any): boolean {
+    if (typeof value === 'string') {
+      // 1. Temporarily replace escaped braces to avoid misinterpretation
+      const escaped = value.replace(/\\{/g, '§LEFTBRACE§').replace(/\\}/g, '§RIGHTBRACE§');
+
+      // 2. Search for unescaped curly brace patterns
+      const keyPattern = /{([^}]+)}/g;
+      const matches = [];
+      let match;
+      while ((match = keyPattern.exec(escaped)) !== null) {
+        matches.push(match[1].trim());
+      }
+
+      if (matches.length === 0) {
+        return false; // No patterns found
+      }
+
+      // 3. Validate if any found pattern is a true special key
+      const hasValidKeys = matches.some(keyContent => this.isValidSpecialKey(keyContent));
+
+      this.logger.debug('Smart keyboard mode detection:', {
+        originalValue: value.substring(0, 50), // Log snippet of original value
+        processedValue: escaped.substring(0, 50), // Log snippet of processed value
+        foundPatterns: matches,
+        hasValidSpecialKeys: hasValidKeys,
+        hasEscapes: value.includes('\\{') || value.includes('\\}'),
+      });
+      return hasValidKeys;
+    }
     return false;
   }
 
   /**
-   * Parse keyboard input into operations
+   * Parse keyboard input into operations, handling escaped braces and filtering invalid keys.
    */
   private parseKeyboardInput(value: string): KeyboardOperation[] {
     const operations: KeyboardOperation[] = [];
     let currentText = '';
 
-    // Regex pattern for detecting special keys
+    // 1. Temporarily replace escaped braces
+    const escaped = value.replace(/\\{/g, '§LEFTBRACE§').replace(/\\}/g, '§RIGHTBRACE§');
+
     const keyPattern = /{([^}]+)}/g;
     let lastIndex = 0;
     let match;
 
-    // Process input value to find special keys and text
-    while ((match = keyPattern.exec(value)) !== null) {
-      // Add any text before this special key
+    while ((match = keyPattern.exec(escaped)) !== null) {
+      // Add text before this potential special key
       if (match.index > lastIndex) {
-        currentText += value.substring(lastIndex, match.index);
+        currentText += escaped.substring(lastIndex, match.index);
       }
 
+      // Process accumulated text (if any)
       if (currentText.length > 0) {
-        operations.push({ type: 'text', content: currentText });
+        operations.push({ type: 'text', content: this.restoreEscapedBraces(currentText) });
         currentText = '';
       }
 
-      // Process the special key or key combination
+      // Process the content within braces
       const keyCommand = match[1].trim();
-      if (this.isModifierCombination(keyCommand)) {
-        operations.push(this.parseModifierCombination(keyCommand));
+      if (this.isValidSpecialKey(keyCommand)) {
+        // It's a valid special key or combination
+        if (this.isModifierCombination(keyCommand)) {
+          operations.push(this.parseModifierCombination(keyCommand));
+        } else {
+          operations.push({
+            type: 'specialKey',
+            key: this.mapSpecialKey(keyCommand),
+          });
+        }
       } else {
-        operations.push({
-          type: 'specialKey',
-          key: this.mapSpecialKey(keyCommand),
-        });
+        // Not a valid special key, treat {keyCommand} as literal text
+        // We need to restore §LEFTBRACE§ and §RIGHTBRACE§ if they were part of the original keyCommand
+        currentText += this.restoreEscapedBraces(`{${keyCommand}}`);
       }
-
       lastIndex = match.index + match[0].length;
     }
 
-    // Add any remaining text after the last special key
-    if (lastIndex < value.length) {
-      currentText += value.substring(lastIndex);
+    // Add any remaining text after the last pattern
+    if (lastIndex < escaped.length) {
+      currentText += escaped.substring(lastIndex);
     }
 
     if (currentText.length > 0) {
-      operations.push({ type: 'text', content: currentText });
+      operations.push({ type: 'text', content: this.restoreEscapedBraces(currentText) });
     }
 
+    this.logger.debug('Parsed keyboard operations:', { operations });
     return operations;
   }
 
@@ -895,7 +1052,7 @@ export class TypeValueHandler {
 
     return {
       type: 'modifierCombination',
-      key: this.mapSpecialKey(key),
+      key: this.mapSpecialKey(key), // Ensure the main key is also mapped if it's a special key itself
       modifiers,
     };
   }
@@ -905,7 +1062,7 @@ export class TypeValueHandler {
    */
   private mapSpecialKey(keyName: string): string {
     const normalized = keyName.trim().toLowerCase();
-    return this.specialKeyMap[normalized] || keyName;
+    return this.specialKeyMap[normalized] || keyName; // Return original if not in map (e.g. 'A' in Ctrl+A)
   }
 
   /**
