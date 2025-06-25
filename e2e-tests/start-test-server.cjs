@@ -50,7 +50,7 @@ function createServer() {
     
     // Default to index listing if requesting root
     if (filePath === '/') {
-      serveIndexPage(res);
+      serveIndexPage(req, res);
       return;
     }
 
@@ -108,7 +108,7 @@ function createServer() {
 }
 
 // Serve index page with list of test files
-function serveIndexPage(res) {
+function serveIndexPage(req, res) {
   const testFiles = fs.readdirSync(__dirname)
     .filter(file => file.endsWith('.html'))
     .sort();

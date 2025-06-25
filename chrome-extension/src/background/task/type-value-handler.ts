@@ -8,7 +8,7 @@
 import type BrowserContext from '../browser/context';
 import { createLogger } from '../log';
 import type { RpcHandler, RpcRequest, RpcResponse } from '../mcp/host-manager';
-import type { DOMElementNode } from '../dom/views';
+import { DOMElementNode } from '../dom/views';
 import { findElementByHighlightIndex } from './dom-utils';
 import { type KeyInput } from 'puppeteer-core/lib/esm/puppeteer/puppeteer-core-browser.js';
 
@@ -39,6 +39,465 @@ interface InputStrategy {
  */
 export class TypeValueHandler {
   private logger = createLogger('TypeValueHandler');
+
+  /**
+   * Restore escaped curly braces
+   */
+  private restoreEscapedBraces(text: string): string {
+    return text.replace(/§LEFTBRACE§/g, '{').replace(/§RIGHTBRACE§/g, '}');
+  }
+
+  /**
+   * Verify if the given key content is a valid special key or modifier combination.
+   */
+  private isValidSpecialKey(keyContent: string): boolean {
+    // Check single special key
+    const normalizedKey = keyContent.toLowerCase();
+    if (this.specialKeyMap[normalizedKey]) {
+      return true;
+    }
+
+    // Check modifier combination (e.g., Ctrl+A, Shift+Tab)
+    if (keyContent.includes('+')) {
+      const parts = keyContent.split('+').map(p => p.trim());
+      if (parts.length >= 2) {
+        const modifiers = parts.slice(0, -1);
+        const key = parts[parts.length - 1];
+
+        // Verify all modifiers are valid
+        const validModifiers = modifiers.every(mod => this.modifierKeyMap[mod.toLowerCase()] !== undefined);
+
+        // Verify the main key is a valid special key or a single character key
+        const validKey =
+          this.specialKeyMap[key.toLowerCase()] !== undefined ||
+          /^[a-zA-Z0-9]$/.test(key) || // Alphanumeric keys
+          key === ' '; // Space key
+
+        return validModifiers && validKey;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Generate DOM snapshot for change detection
+   * Enhanced to capture more comprehensive DOM state including button states and content changes
+   */
+  private async generateDOMSnapshot(): Promise<string> {
+    try {
+      // Get current browser state with vision enabled
+      const browserState = await this.browserContext.getState(true);
+
+      if (!browserState.elementTree) {
+        return 'no_dom';
+      }
+
+      // Extract interactive elements using enhanced logic
+      const interactiveElements = this.extractInteractiveElements(browserState.elementTree);
+
+      // Also capture button states and important UI elements that might change
+      const buttonStates = this.extractButtonStates(browserState.elementTree);
+      const contentElements = this.extractContentElements(browserState.elementTree);
+
+      // Generate comprehensive snapshot
+      const snapshot = this.generateEnhancedElementSnapshot(interactiveElements, buttonStates, contentElements);
+
+      return snapshot;
+    } catch (error) {
+      this.logger.warning('Failed to generate DOM snapshot:', error);
+      return 'snapshot_error';
+    }
+  }
+
+  /**
+   * Extract interactive elements from DOM tree
+   * Enhanced to include potential interactive elements for better DOM change detection
+   */
+  private extractInteractiveElements(tree: DOMElementNode): any[] {
+    const interactiveElements: any[] = [];
+    const queue: DOMElementNode[] = [tree];
+
+    while (queue.length > 0) {
+      const node = queue.shift();
+      if (!node) continue;
+
+      // Add interactive elements with highlight indices (existing logic)
+      if (node.isInteractive && node.highlightIndex !== null) {
+        interactiveElements.push(this.createElementSnapshot(node, 'interactive'));
+      }
+      // Add potential interactive elements (button, input, etc., even if currently disabled/non-interactive)
+      else if (this.isPotentialInteractiveElement(node)) {
+        interactiveElements.push(this.createElementSnapshot(node, 'potential'));
+      }
+
+      // Add children to queue
+      for (const child of node.children) {
+        if (child instanceof DOMElementNode) {
+          queue.push(child);
+        }
+      }
+    }
+
+    return interactiveElements;
+  }
+
+  /**
+   * Check if an element is potentially interactive
+   * This includes elements that may become interactive or lose interactivity
+   */
+  private isPotentialInteractiveElement(node: DOMElementNode): boolean {
+    const tagName = node.tagName?.toLowerCase();
+    if (!tagName) return false;
+
+    // Standard interactive element types
+    const interactiveTagNames = new Set(['button', 'input', 'select', 'textarea', 'a', 'option']);
+
+    // Check tag name
+    if (interactiveTagNames.has(tagName)) {
+      return true;
+    }
+
+    // Check for elements with interactive roles
+    const interactiveRoles = new Set([
+      'button',
+      'link',
+      'checkbox',
+      'radio',
+      'textbox',
+      'combobox',
+      'listbox',
+      'option',
+    ]);
+
+    if (node.attributes.role && interactiveRoles.has(node.attributes.role.toLowerCase())) {
+      return true;
+    }
+
+    // Check for elements with click handlers or interactive attributes
+    if (
+      node.attributes.onclick ||
+      node.attributes.onsubmit ||
+      node.attributes.tabindex !== undefined ||
+      node.attributes.contenteditable === 'true'
+    ) {
+      return true;
+    }
+
+    // Check for form-related elements that might become interactive
+    if (tagName === 'div' || tagName === 'span') {
+      const className = node.attributes.class || '';
+      const id = node.attributes.id || '';
+
+      // Common patterns for interactive elements
+      const interactivePatterns = [/button/i, /btn/i, /submit/i, /click/i, /interactive/i, /action/i];
+
+      return interactivePatterns.some(pattern => pattern.test(className) || pattern.test(id));
+    }
+
+    return false;
+  }
+
+  /**
+   * Create element snapshot for DOM change detection
+   */
+  private createElementSnapshot(node: DOMElementNode, elementStatus: 'interactive' | 'potential'): any {
+    return {
+      // Use a consistent identifier for potential elements
+      index: node.highlightIndex ?? -1,
+      tagName: node.tagName,
+      text: node.getAllTextTillNextClickableElement(),
+      id: node.attributes.id || '',
+      class: node.attributes.class || '',
+      type: node.attributes.type || '',
+      href: node.attributes.href || '',
+      value: node.attributes.value || '',
+      isInViewport: node.isInViewport,
+      // New fields to track element state
+      elementStatus: elementStatus,
+      disabled: node.attributes.disabled !== undefined,
+      readonly: node.attributes.readonly !== undefined,
+      isInteractive: node.isInteractive,
+      // Add a unique identifier for consistent tracking
+      elementKey: this.generateElementKey(node),
+    };
+  }
+
+  /**
+   * Generate a unique key for an element for consistent tracking
+   */
+  private generateElementKey(node: DOMElementNode): string {
+    const parts = [
+      node.tagName || '',
+      node.attributes.id || '',
+      node.attributes.name || '',
+      node.attributes.class || '',
+      (node.getAllTextTillNextClickableElement() || '').substring(0, 30),
+    ];
+    return parts.join(':');
+  }
+
+  /**
+   * Generate element snapshot hash for change detection
+   */
+  private generateElementSnapshot(elements: any[]): string {
+    if (elements.length === 0) {
+      return '0:';
+    }
+
+    // Generate stable keys for each element
+    const elementKeys = elements.map(el => {
+      const keyParts = [
+        el.tagName || '',
+        el.index?.toString() || '',
+        el.id || '',
+        el.class || '',
+        (el.text || '').substring(0, 50), // Limit text length to avoid large changes
+        el.type || '',
+        el.href || '',
+        el.value || '',
+      ];
+      return keyParts.join(':');
+    });
+
+    // Sort for consistency
+    elementKeys.sort();
+    const hash = elementKeys.join('|');
+
+    return `${elements.length}:${hash}`;
+  }
+
+  /**
+   * Generate enhanced element snapshot that includes button states and content elements
+   */
+  private generateEnhancedElementSnapshot(
+    interactiveElements: any[],
+    buttonStates: any[],
+    contentElements: any[],
+  ): string {
+    const parts = [];
+
+    // Interactive elements count and hash
+    if (interactiveElements.length > 0) {
+      const interactiveKeys = interactiveElements.map(el => {
+        const keyParts = [
+          el.tagName || '',
+          el.index?.toString() || '',
+          el.id || '',
+          el.class || '',
+          (el.text || '').substring(0, 50),
+          el.type || '',
+          el.disabled?.toString() || 'false',
+          el.isInteractive?.toString() || 'false',
+        ];
+        return keyParts.join(':');
+      });
+      interactiveKeys.sort();
+      parts.push(`I${interactiveElements.length}:${interactiveKeys.join('|')}`);
+    } else {
+      parts.push('I0:');
+    }
+
+    // Button states
+    if (buttonStates.length > 0) {
+      const buttonKeys = buttonStates.map(btn => {
+        return `${btn.text}:${btn.disabled}:${btn.class}`;
+      });
+      buttonKeys.sort();
+      parts.push(`B${buttonStates.length}:${buttonKeys.join('|')}`);
+    } else {
+      parts.push('B0:');
+    }
+
+    // Content elements (for character counters, warnings, etc.)
+    if (contentElements.length > 0) {
+      const contentKeys = contentElements.map(el => {
+        return `${el.class}:${el.text.substring(0, 30)}`;
+      });
+      contentKeys.sort();
+      parts.push(`C${contentElements.length}:${contentKeys.join('|')}`);
+    } else {
+      parts.push('C0:');
+    }
+
+    return parts.join('###');
+  }
+
+  /**
+   * Extract button states for DOM change detection
+   */
+  private extractButtonStates(tree: DOMElementNode): any[] {
+    const buttons: any[] = [];
+    const queue: DOMElementNode[] = [tree];
+
+    while (queue.length > 0) {
+      const node = queue.shift();
+      if (!node) continue;
+
+      // Capture all buttons and their states
+      if (
+        node.tagName?.toLowerCase() === 'button' ||
+        (node.tagName?.toLowerCase() === 'div' && node.attributes.role === 'button') ||
+        (node.tagName?.toLowerCase() === 'a' && node.attributes.role === 'button')
+      ) {
+        const buttonText = node.getAllTextTillNextClickableElement() || '';
+        const isDisabled =
+          node.attributes.disabled !== undefined ||
+          node.attributes['aria-disabled'] === 'true' ||
+          (node.attributes.class || '').includes('disabled');
+
+        buttons.push({
+          text: buttonText.substring(0, 50), // Limit text length
+          disabled: isDisabled,
+          class: node.attributes.class || '',
+          tagName: node.tagName,
+          role: node.attributes.role || '',
+        });
+      }
+
+      // Add children to queue
+      for (const child of node.children) {
+        if (child instanceof DOMElementNode) {
+          queue.push(child);
+        }
+      }
+    }
+
+    return buttons;
+  }
+
+  /**
+   * Extract content elements that might change (counters, warnings, etc.)
+   */
+  private extractContentElements(tree: DOMElementNode): any[] {
+    const contentElements: any[] = [];
+    const queue: DOMElementNode[] = [tree];
+
+    while (queue.length > 0) {
+      const node = queue.shift();
+      if (!node) continue;
+
+      const className = node.attributes.class || '';
+      const text = node.getAllTextTillNextClickableElement() || '';
+
+      // Look for elements that typically indicate UI state changes
+      const isStateElement =
+        className.includes('counter') ||
+        className.includes('warning') ||
+        className.includes('error') ||
+        className.includes('limit') ||
+        className.includes('character') ||
+        className.includes('premium') ||
+        className.includes('upgrade') ||
+        text.includes('character') ||
+        text.includes('Premium') ||
+        text.includes('upgrade') ||
+        /\d+\s*(character|char|left|remaining)/.test(text.toLowerCase());
+
+      if (isStateElement && text.trim().length > 0) {
+        contentElements.push({
+          text: text.substring(0, 50),
+          class: className,
+          tagName: node.tagName || '',
+          id: node.attributes.id || '',
+        });
+      }
+
+      // Add children to queue
+      for (const child of node.children) {
+        if (child instanceof DOMElementNode) {
+          queue.push(child);
+        }
+      }
+    }
+
+    return contentElements;
+  }
+
+  /**
+   * Smart DOM comparison that detects significant changes in enhanced snapshot format
+   */
+  private isDOMSignificantlyChanged(before: string, after: string): boolean {
+    if (before === after) return false;
+
+    // Handle enhanced snapshot format: "I<count>:<hash>###B<count>:<hash>###C<count>:<hash>"
+    if (before.includes('###') && after.includes('###')) {
+      return this.compareEnhancedSnapshots(before, after);
+    }
+
+    // Fallback to legacy format for backward compatibility
+    const [beforeCount, beforeHash] = before.split(':', 2);
+    const [afterCount, afterHash] = after.split(':', 2);
+
+    // Element count change is significant
+    if (beforeCount !== afterCount) {
+      this.logger.debug('DOM element count changed', {
+        before: beforeCount,
+        after: afterCount,
+      });
+      return true;
+    }
+
+    // Hash difference indicates property changes
+    if (beforeHash !== afterHash) {
+      this.logger.debug('DOM element properties changed');
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Compare enhanced snapshots for more accurate change detection
+   */
+  private compareEnhancedSnapshots(before: string, after: string): boolean {
+    const beforeParts = before.split('###');
+    const afterParts = after.split('###');
+
+    if (beforeParts.length !== afterParts.length) {
+      this.logger.debug('Enhanced snapshot structure changed');
+      return true;
+    }
+
+    let changesDetected = false;
+    const changeDetails: string[] = [];
+
+    // Compare each part (Interactive, Buttons, Content)
+    for (let i = 0; i < beforeParts.length; i++) {
+      const beforePart = beforeParts[i];
+      const afterPart = afterParts[i];
+
+      if (beforePart !== afterPart) {
+        const partType = beforePart.charAt(0); // I, B, or C
+        const partName = partType === 'I' ? 'Interactive' : partType === 'B' ? 'Buttons' : 'Content';
+
+        // Extract counts for comparison
+        const beforeMatch = beforePart.match(/^([IBC])(\d+):/);
+        const afterMatch = afterPart.match(/^([IBC])(\d+):/);
+
+        if (beforeMatch && afterMatch) {
+          const beforeCount = parseInt(beforeMatch[2]);
+          const afterCount = parseInt(afterMatch[2]);
+
+          if (beforeCount !== afterCount) {
+            changeDetails.push(`${partName} count: ${beforeCount} → ${afterCount}`);
+            changesDetected = true;
+          } else {
+            changeDetails.push(`${partName} properties changed`);
+            changesDetected = true;
+          }
+        } else {
+          changeDetails.push(`${partName} structure changed`);
+          changesDetected = true;
+        }
+      }
+    }
+
+    if (changesDetected) {
+      this.logger.debug('Enhanced DOM changes detected', { changes: changeDetails });
+    }
+
+    return changesDetected;
+  }
 
   /**
    * Special key mappings for standardized keyboard input
@@ -202,25 +661,185 @@ export class TypeValueHandler {
         };
       }
 
+      // DOM change detection: Get snapshot before operation
+      const beforeSnapshot = await this.generateDOMSnapshot();
+      this.logger.debug('DOM snapshot before type_value:', { beforeSnapshot });
+
       // Auto-detect or use explicit keyboard mode
-      const useKeyboardMode = this.shouldUseKeyboardMode(value);
+      const shouldUseKeyboard = this.shouldUseKeyboardMode(value);
 
-      // Handle keyboard mode for special key input
-      if (useKeyboardMode) {
-        const result = await this.handleKeyboardInput(currentPage, elementNode!, value, finalOptions);
+      if (shouldUseKeyboard) {
+        try {
+          // Attempt keyboard mode
+          this.logger.debug('Attempting keyboard mode input');
+          const keyboardResult = await this.handleKeyboardInput(currentPage, elementNode!, value, finalOptions);
 
-        // Use optimized wait time
-        const optimalWait = this.getOptimalWaitTime('keyboard', finalOptions.wait_after * 1000);
+          // Keyboard mode succeeded
+          this.logger.info('Keyboard mode succeeded');
+          // Use optimized wait time
+          const optimalWait = this.getOptimalWaitTime('keyboard', finalOptions.wait_after * 1000);
+          await new Promise(resolve => setTimeout(resolve, optimalWait));
+
+          // DOM change detection: Get snapshot after keyboard operation
+          const afterSnapshot = await this.generateDOMSnapshot();
+          this.logger.debug('DOM snapshot after keyboard operation:', { afterSnapshot });
+
+          const domChanged =
+            beforeSnapshot !== 'no_dom' &&
+            afterSnapshot !== 'no_dom' &&
+            beforeSnapshot !== 'snapshot_error' &&
+            afterSnapshot !== 'snapshot_error' &&
+            this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
+
+          if (domChanged) {
+            this.logger.info('DOM change detected after keyboard operation', {
+              element_index,
+              beforeSnapshot: beforeSnapshot.substring(0, 100),
+              afterSnapshot: afterSnapshot.substring(0, 100),
+            });
+          }
+
+          return {
+            result: {
+              success: true,
+              message: `Successfully executed keyboard input on element`,
+              element_index,
+              element_type: elementNode!.tagName?.toLowerCase() || 'unknown',
+              input_method: 'keyboard',
+              dom_changed: domChanged,
+              operations_performed: keyboardResult.operationsPerformed,
+              element_info: {
+                tag_name: elementNode!.tagName,
+                text: elementNode!.getAllTextTillNextClickableElement() || '',
+                placeholder: elementNode!.attributes.placeholder || '',
+                name: elementNode!.attributes.name || '',
+                id: elementNode!.attributes.id || '',
+                type: elementNode!.attributes.type || '',
+              },
+              options_used: finalOptions,
+            },
+          };
+        } catch (keyboardError) {
+          // Keyboard mode failed, automatically fall back to text mode
+          this.logger.warning('Keyboard mode failed, falling back to text mode:', keyboardError);
+
+          try {
+            // Reset element state before attempting text mode
+            await this.resetElementState(currentPage, elementNode!, finalOptions);
+
+            // Execute text mode input
+            const textResult = await this.handleTextModeInput(currentPage, elementNode!, value, finalOptions);
+            this.logger.info('Auto-fallback to text mode succeeded');
+
+            // Use optimized wait time
+            const strategy = this.determineInputStrategy(elementNode!, value);
+            const optimalWait = this.getOptimalWaitTime(strategy.elementType, finalOptions.wait_after * 1000);
+            await new Promise(resolve => setTimeout(resolve, optimalWait));
+
+            // DOM change detection: Get snapshot after text operation
+            const afterSnapshot = await this.generateDOMSnapshot();
+            this.logger.debug('DOM snapshot after text operation (fallback):', { afterSnapshot });
+
+            const domChanged =
+              beforeSnapshot !== 'no_dom' &&
+              afterSnapshot !== 'no_dom' &&
+              beforeSnapshot !== 'snapshot_error' &&
+              afterSnapshot !== 'snapshot_error' &&
+              this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
+
+            if (domChanged) {
+              this.logger.info('DOM change detected after text operation (fallback)', {
+                element_index,
+                beforeSnapshot: beforeSnapshot.substring(0, 100),
+                afterSnapshot: afterSnapshot.substring(0, 100),
+              });
+            }
+
+            return {
+              result: {
+                success: true,
+                message: `Keyboard mode failed, successfully set value using text mode (fallback) on ${strategy.elementType} to "${textResult.actualValue}"`,
+                element_index,
+                element_type: strategy.elementType,
+                input_method: 'text-fallback',
+                actual_value: textResult.actualValue,
+                dom_changed: domChanged,
+                element_info: {
+                  tag_name: elementNode!.tagName,
+                  text: elementNode!.getAllTextTillNextClickableElement() || '',
+                  placeholder: elementNode!.attributes.placeholder || '',
+                  name: elementNode!.attributes.name || '',
+                  id: elementNode!.attributes.id || '',
+                  type: elementNode!.attributes.type || '',
+                },
+                options_used: finalOptions,
+              },
+            };
+          } catch (textError) {
+            // Both modes failed
+            this.logger.error('Both keyboard and text modes failed:', { keyboardError, textError });
+            return {
+              error: {
+                code: -32603,
+                message: `Both keyboard and text input modes failed. Keyboard: ${keyboardError instanceof Error ? keyboardError.message : String(keyboardError)}. Text: ${textError instanceof Error ? textError.message : String(textError)}`,
+                data: {
+                  error_code: 'TYPE_VALUE_ALL_MODES_FAILED',
+                  keyboard_error: keyboardError instanceof Error ? keyboardError.stack : String(keyboardError),
+                  text_error: textError instanceof Error ? textError.stack : String(textError),
+                },
+              },
+            };
+          }
+        }
+      } else {
+        // Directly use text mode
+        this.logger.debug('Using text mode input');
+        const textResult = await this.handleTextModeInput(currentPage, elementNode!, value, finalOptions);
+
+        const strategy = this.determineInputStrategy(elementNode!, value);
+        // Use optimized wait time based on element type
+        const optimalWait = this.getOptimalWaitTime(strategy.elementType, finalOptions.wait_after * 1000);
         await new Promise(resolve => setTimeout(resolve, optimalWait));
+
+        // Handle submit option
+        if (finalOptions.submit) {
+          try {
+            await currentPage.sendKeys('Enter');
+            this.logger.debug('Form submitted after setting value');
+          } catch (submitError) {
+            this.logger.warning('Failed to submit form after setting value:', submitError);
+          }
+        }
+
+        // DOM change detection: Get snapshot after standard operation
+        const afterSnapshot = await this.generateDOMSnapshot();
+        this.logger.debug('DOM snapshot after standard operation:', { afterSnapshot });
+
+        const domChanged =
+          beforeSnapshot !== 'no_dom' &&
+          afterSnapshot !== 'no_dom' &&
+          beforeSnapshot !== 'snapshot_error' &&
+          afterSnapshot !== 'snapshot_error' &&
+          this.isDOMSignificantlyChanged(beforeSnapshot, afterSnapshot);
+
+        if (domChanged) {
+          this.logger.info('DOM change detected after standard operation', {
+            element_index,
+            strategy: strategy.elementType,
+            beforeSnapshot: beforeSnapshot.substring(0, 100),
+            afterSnapshot: afterSnapshot.substring(0, 100),
+          });
+        }
 
         return {
           result: {
             success: true,
-            message: `Successfully executed keyboard input on element`,
+            message: `Successfully set ${strategy.elementType} to "${textResult.actualValue}" using text method`,
             element_index,
-            element_type: elementNode!.tagName?.toLowerCase() || 'unknown',
-            input_method: 'keyboard',
-            operations_performed: result.operationsPerformed,
+            element_type: strategy.elementType,
+            input_method: 'text',
+            actual_value: textResult.actualValue,
+            dom_changed: domChanged,
             element_info: {
               tag_name: elementNode!.tagName,
               text: elementNode!.getAllTextTillNextClickableElement() || '',
@@ -233,73 +852,6 @@ export class TypeValueHandler {
           },
         };
       }
-
-      // Standard value setting mode for non-keyboard input
-      // Determine input strategy
-      const strategy = this.determineInputStrategy(elementNode!, value);
-      if (!strategy.canHandle) {
-        const supportedTypes = ['input', 'select', 'textarea', 'contenteditable'];
-        const suggestedActions = [
-          'Check if element is actually interactive',
-          'Verify element type matches expected behavior',
-          'Use click_element tool for non-form elements',
-        ];
-
-        return {
-          error: {
-            code: -32000,
-            message: `Cannot handle element type: ${strategy.elementType}`,
-            data: {
-              error_code: 'UNSUPPORTED_ELEMENT_TYPE',
-              element_type: strategy.elementType,
-              element_tag: elementNode!.tagName,
-              supported_types: supportedTypes,
-              suggested_actions: suggestedActions,
-            },
-          },
-        };
-      }
-
-      // Execute the value setting operation
-      const setResult = await this.executeValueSetting(currentPage, elementNode!, value, strategy, finalOptions);
-
-      // Use optimized wait time based on element type
-      const optimalWait = this.getOptimalWaitTime(strategy.elementType, finalOptions.wait_after * 1000);
-      await new Promise(resolve => setTimeout(resolve, optimalWait));
-
-      // Handle submit option
-      if (finalOptions.submit) {
-        try {
-          await currentPage.sendKeys('Enter');
-          this.logger.debug('Form submitted after setting value');
-        } catch (submitError) {
-          this.logger.warning('Failed to submit form after setting value:', submitError);
-        }
-      }
-
-      const result = {
-        success: true,
-        message: `Successfully set ${strategy.elementType} to "${setResult.actualValue}" using ${strategy.method} method`,
-        element_index,
-        element_type: strategy.elementType,
-        input_method: strategy.method,
-        actual_value: setResult.actualValue,
-        element_info: {
-          tag_name: elementNode!.tagName,
-          text: elementNode!.getAllTextTillNextClickableElement() || '',
-          placeholder: elementNode!.attributes.placeholder || '',
-          name: elementNode!.attributes.name || '',
-          id: elementNode!.attributes.id || '',
-          type: elementNode!.attributes.type || '',
-        },
-        options_used: finalOptions,
-      };
-
-      this.logger.debug('Type value completed:', result);
-
-      return {
-        result,
-      };
     } catch (error) {
       this.logger.error('Error setting value:', error);
 
@@ -339,74 +891,146 @@ export class TypeValueHandler {
   };
 
   /**
-   * Determine if keyboard mode should be used
+   * Reset element state, typically used before retrying with a different input mode.
    */
-  private shouldUseKeyboardMode(value: any): boolean {
-    // Auto-detect keyboard mode based on content
-    if (typeof value === 'string') {
-      // Check for special key pattern {key} or modifier combinations like {Ctrl+A}
-      const keyPattern = /{([^}]+)}/g;
-      const hasSpecialKeys = keyPattern.test(value);
+  private async resetElementState(page: any, elementNode: DOMElementNode, options: any): Promise<void> {
+    try {
+      const elementHandle = await page.locateElement(elementNode);
+      if (!elementHandle) return;
 
-      // Debug log to help identify the issue
-      console.log('Auto-detecting keyboard mode:', {
-        value,
-        hasSpecialKeys,
+      // Clear possible focus and selection states
+      await elementHandle.evaluate((el: HTMLElement) => {
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+          el.blur(); // Remove focus
+          el.focus(); // Re-focus to ensure it's ready
+          if (options.clear_first) {
+            // Only clear if originally requested
+            el.value = ''; // Clear value
+            el.dispatchEvent(new Event('input', { bubbles: true })); // Trigger input event
+          }
+        } else if (el.isContentEditable && options.clear_first) {
+          el.textContent = '';
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        }
       });
 
-      return hasSpecialKeys;
+      // Brief wait for state stabilization
+      await new Promise(resolve => setTimeout(resolve, 100));
+      this.logger.debug('Element state reset for fallback attempt');
+    } catch (error) {
+      this.logger.debug('Reset element state failed (non-critical for fallback):', error);
     }
+  }
 
+  /**
+   * Unified handler for text mode input, used directly or as fallback.
+   */
+  private async handleTextModeInput(
+    page: any,
+    elementNode: DOMElementNode,
+    value: any,
+    options: any,
+  ): Promise<{ actualValue: any }> {
+    const strategy = this.determineInputStrategy(elementNode!, value);
+    if (!strategy.canHandle) {
+      // This should ideally not be reached if called as a fallback,
+      // but good to have a guard.
+      throw new Error(`Cannot handle element type for text input: ${strategy.elementType}`);
+    }
+    return await this.executeValueSetting(page, elementNode!, value, strategy, options);
+  }
+
+  /**
+   * Determine if keyboard mode should be used based on smart detection.
+   */
+  private shouldUseKeyboardMode(value: any): boolean {
+    if (typeof value === 'string') {
+      // 1. Temporarily replace escaped braces to avoid misinterpretation
+      const escaped = value.replace(/\\{/g, '§LEFTBRACE§').replace(/\\}/g, '§RIGHTBRACE§');
+
+      // 2. Search for unescaped curly brace patterns
+      const keyPattern = /{([^}]+)}/g;
+      const matches = [];
+      let match;
+      while ((match = keyPattern.exec(escaped)) !== null) {
+        matches.push(match[1].trim());
+      }
+
+      if (matches.length === 0) {
+        return false; // No patterns found
+      }
+
+      // 3. Validate if any found pattern is a true special key
+      const hasValidKeys = matches.some(keyContent => this.isValidSpecialKey(keyContent));
+
+      this.logger.debug('Smart keyboard mode detection:', {
+        originalValue: value.substring(0, 50), // Log snippet of original value
+        processedValue: escaped.substring(0, 50), // Log snippet of processed value
+        foundPatterns: matches,
+        hasValidSpecialKeys: hasValidKeys,
+        hasEscapes: value.includes('\\{') || value.includes('\\}'),
+      });
+      return hasValidKeys;
+    }
     return false;
   }
 
   /**
-   * Parse keyboard input into operations
+   * Parse keyboard input into operations, handling escaped braces and filtering invalid keys.
    */
   private parseKeyboardInput(value: string): KeyboardOperation[] {
     const operations: KeyboardOperation[] = [];
     let currentText = '';
 
-    // Regex pattern for detecting special keys
+    // 1. Temporarily replace escaped braces
+    const escaped = value.replace(/\\{/g, '§LEFTBRACE§').replace(/\\}/g, '§RIGHTBRACE§');
+
     const keyPattern = /{([^}]+)}/g;
     let lastIndex = 0;
     let match;
 
-    // Process input value to find special keys and text
-    while ((match = keyPattern.exec(value)) !== null) {
-      // Add any text before this special key
+    while ((match = keyPattern.exec(escaped)) !== null) {
+      // Add text before this potential special key
       if (match.index > lastIndex) {
-        currentText += value.substring(lastIndex, match.index);
+        currentText += escaped.substring(lastIndex, match.index);
       }
 
+      // Process accumulated text (if any)
       if (currentText.length > 0) {
-        operations.push({ type: 'text', content: currentText });
+        operations.push({ type: 'text', content: this.restoreEscapedBraces(currentText) });
         currentText = '';
       }
 
-      // Process the special key or key combination
+      // Process the content within braces
       const keyCommand = match[1].trim();
-      if (this.isModifierCombination(keyCommand)) {
-        operations.push(this.parseModifierCombination(keyCommand));
+      if (this.isValidSpecialKey(keyCommand)) {
+        // It's a valid special key or combination
+        if (this.isModifierCombination(keyCommand)) {
+          operations.push(this.parseModifierCombination(keyCommand));
+        } else {
+          operations.push({
+            type: 'specialKey',
+            key: this.mapSpecialKey(keyCommand),
+          });
+        }
       } else {
-        operations.push({
-          type: 'specialKey',
-          key: this.mapSpecialKey(keyCommand),
-        });
+        // Not a valid special key, treat {keyCommand} as literal text
+        // We need to restore §LEFTBRACE§ and §RIGHTBRACE§ if they were part of the original keyCommand
+        currentText += this.restoreEscapedBraces(`{${keyCommand}}`);
       }
-
       lastIndex = match.index + match[0].length;
     }
 
-    // Add any remaining text after the last special key
-    if (lastIndex < value.length) {
-      currentText += value.substring(lastIndex);
+    // Add any remaining text after the last pattern
+    if (lastIndex < escaped.length) {
+      currentText += escaped.substring(lastIndex);
     }
 
     if (currentText.length > 0) {
-      operations.push({ type: 'text', content: currentText });
+      operations.push({ type: 'text', content: this.restoreEscapedBraces(currentText) });
     }
 
+    this.logger.debug('Parsed keyboard operations:', { operations });
     return operations;
   }
 
@@ -428,7 +1052,7 @@ export class TypeValueHandler {
 
     return {
       type: 'modifierCombination',
-      key: this.mapSpecialKey(key),
+      key: this.mapSpecialKey(key), // Ensure the main key is also mapped if it's a special key itself
       modifiers,
     };
   }
@@ -438,7 +1062,7 @@ export class TypeValueHandler {
    */
   private mapSpecialKey(keyName: string): string {
     const normalized = keyName.trim().toLowerCase();
-    return this.specialKeyMap[normalized] || keyName;
+    return this.specialKeyMap[normalized] || keyName; // Return original if not in map (e.g. 'A' in Ctrl+A)
   }
 
   /**
